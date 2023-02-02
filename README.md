@@ -1,13 +1,12 @@
 # parcel-fabric-pro-addins
-![Image of Fabric](cul-de-sac-icon.png "Parcel Fabric Pro Addins")
-<a href="url"><img src="cul-de-sac-icon.png" height="200"></a>
+<a href="url"><img src="cul-de-sac-icon.png" height="180"></a>
 
 The parcel fabric pro addins are a set of tools for managing and editing parcel fabrics. The add-ins are used to complement the ArcGIS Pro Parcel Fabric functionality. The code supplied with these add-ins can also be used by developers for creating other custom tools for parcel fabrics.
 
 ## Features ##
 
 * Workflow helpers
-	*  Parcels Addin Utilities ribbon tab
+	*  Parcels Addin - Utilities tab, with tools for working with parcel fabrics
 
 ## Requirements
 
