@@ -1,27 +1,25 @@
 # parcel-fabric-pro-addins
-============================
 ![Image of Fabric](cul-de-sac-icon.png "Parcel Fabric Pro Addins")
+<a href="url"><img src="cul-de-sac-icon.png" height="200"></a>
 
 The parcel fabric pro addins are a set of tools for managing and editing parcel fabrics. The add-ins are used to complement the ArcGIS Pro Parcel Fabric functionality. The code supplied with these add-ins can also be used by developers for creating other custom tools for parcel fabrics.
 
 ## Features ##
+
 * Workflow helpers
 	*  Parcels Addin Utilities ribbon tab
 
-## Instructions
-### General Help
-[New to Github? Get started here.](http://htmlpreview.github.com/?https://github.com/Esri/esri.github.com/blob/master/help/esri-getting-to-know-github.html)
-
 ## Requirements
+
 These add-ins are supported with ArcGIS Pro 3.0 (or higher) - Standard or Advanced - [About](https://www.esri.com/en-us/arcgis/products/arcgis-pro/overview)
 
 ### Compiling Source code
+
 This add-in source code will compile with:
 
 - ArcGIS Pro SDK for .NET 3.0 or higher
 - .Net 4.8 or higher
 - Visual Studio 2022 or higher
-
 
 ## Resources
 
@@ -56,5 +54,3 @@ limitations under the License.
 
 A copy of the license is available in the repository's
 [LICENSE.txt](LICENSE.txt) file.
-
-[](Esri Language: C-Sharp)
