@@ -1,0 +1,156 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net6.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <RuntimeIdentifier>win10-x64</RuntimeIdentifier>
+    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <NoWarn>CA1416</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Remove="View\ParcelReport.xaml.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="Config.daml" />
+    <Content Include="DarkImages\FabricAddInDesktop16.png" />
+    <Content Include="DarkImages\FabricAddInDesktop32.png" />
+    <Content Include="DarkImages\ParcelRemainder16.png" />
+    <Content Include="DarkImages\ParcelRemainder32.png" />
+    <Content Include="DarkImages\ParcelReport16.png" />
+    <Content Include="DarkImages\ParcelReport32.png" />
+    <Content Include="DarkImages\Redo16.png" />
+    <Content Include="DarkImages\Redo32.png" />
+    <Content Include="DarkImages\Undo16.png" />
+    <Content Include="DarkImages\Undo32.png" />
+    <Content Include="DarkImages\UpdateMiscloseArea16.png" />
+    <Content Include="DarkImages\UpdateMiscloseArea32.png" />
+    <Content Include="Images\FabricAddInDesktop16.png" />
+    <Content Include="Images\FabricAddInDesktop32.png" />
+    <Content Include="Images\ParcelRemainder16.png" />
+    <Content Include="Images\ParcelRemainder32.png" />
+    <Content Include="Images\ParcelReport16.png" />
+    <Content Include="Images\ParcelReport32.png" />
+    <Content Include="Images\Redo16.png" />
+    <Content Include="Images\Redo32.png" />
+    <Content Include="Images\Undo16.png" />
+    <Content Include="Images\Undo32.png" />
+    <Content Include="Images\UpdateMiscloseArea16.png" />
+    <Content Include="Images\UpdateMiscloseArea32.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Remove="DarkImages\FabricAddInDesktop16.png" />
+    <None Remove="DarkImages\FabricAddInDesktop32.png" />
+    <None Remove="DarkImages\ParcelRemainder16.png" />
+    <None Remove="DarkImages\ParcelRemainder32.png" />
+    <None Remove="DarkImages\ParcelReport16.png" />
+    <None Remove="DarkImages\ParcelReport32.png" />
+    <None Remove="DarkImages\Redo16.png" />
+    <None Remove="DarkImages\Redo32.png" />
+    <None Remove="DarkImages\Undo16.png" />
+    <None Remove="DarkImages\Undo32.png" />
+    <None Remove="DarkImages\UpdateMiscloseArea16.png" />
+    <None Remove="DarkImages\UpdateMiscloseArea32.png" />
+    <None Remove="Images\FabricAddInDesktop16.png" />
+    <None Remove="Images\FabricAddInDesktop32.png" />
+    <None Remove="Images\ParcelRemainder16.png" />
+    <None Remove="Images\ParcelRemainder32.png" />
+    <None Remove="Images\ParcelReport16.png" />
+    <None Remove="Images\ParcelReport32.png" />
+    <None Remove="Images\Redo16.png" />
+    <None Remove="Images\Redo32.png" />
+    <None Remove="Images\Undo16.png" />
+    <None Remove="Images\Undo32.png" />
+    <None Remove="Images\UpdateMiscloseArea16.png" />
+    <None Remove="Images\UpdateMiscloseArea32.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <Page Remove="View\ParcelReport.xaml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="ArcGIS.Desktop.Framework">
+      <HintPath>C:\Program Files\ArcGIS\Pro\bin\ArcGIS.Desktop.Framework.dll</HintPath>
+      <CopyLocal>False</CopyLocal>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="ArcGIS.Core">
+      <HintPath>C:\Program Files\ArcGIS\Pro\bin\ArcGIS.Core.dll</HintPath>
+      <CopyLocal>False</CopyLocal>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="ArcGIS.Desktop.Core">
+      <HintPath>C:\Program Files\ArcGIS\Pro\bin\Extensions\Core\ArcGIS.Desktop.Core.dll</HintPath>
+      <CopyLocal>False</CopyLocal>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="ArcGIS.Desktop.Mapping">
+      <HintPath>C:\Program Files\ArcGIS\Pro\bin\Extensions\Mapping\ArcGIS.Desktop.Mapping.dll</HintPath>
+      <CopyLocal>False</CopyLocal>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="ArcGIS.Desktop.Catalog">
+      <HintPath>C:\Program Files\ArcGIS\Pro\bin\Extensions\Catalog\ArcGIS.Desktop.Catalog.dll</HintPath>
+      <CopyLocal>False</CopyLocal>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="ArcGIS.Desktop.Editing">
+      <HintPath>C:\Program Files\ArcGIS\Pro\bin\Extensions\Editing\ArcGIS.Desktop.Editing.dll</HintPath>
+      <CopyLocal>False</CopyLocal>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="ArcGIS.Desktop.Extensions">
+      <HintPath>C:\Program Files\ArcGIS\Pro\bin\Extensions\DesktopExtensions\ArcGIS.Desktop.Extensions.dll</HintPath>
+      <CopyLocal>False</CopyLocal>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="ArcGIS.Desktop.GeoProcessing">
+      <HintPath>C:\Program Files\ArcGIS\Pro\bin\Extensions\GeoProcessing\ArcGIS.Desktop.GeoProcessing.dll</HintPath>
+      <CopyLocal>False</CopyLocal>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="ArcGIS.Desktop.Layouts">
+      <HintPath>C:\Program Files\ArcGIS\Pro\bin\Extensions\Layout\ArcGIS.Desktop.Layouts.dll</HintPath>
+      <CopyLocal>False</CopyLocal>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="ArcGIS.Desktop.Shared.Wpf">
+      <HintPath>C:\Program Files\ArcGIS\Pro\bin\ArcGIS.Desktop.Shared.Wpf.dll</HintPath>
+      <CopyLocal>False</CopyLocal>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="ArcGIS.Desktop.Ribbon.Wpf">
+      <HintPath>C:\Program Files\ArcGIS\Pro\bin\ArcGIS.Desktop.Ribbon.Wpf.dll</HintPath>
+      <CopyLocal>False</CopyLocal>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="ArcGIS.Desktop.DataGrid.Contrib.Wpf">
+      <HintPath>C:\Program Files\ArcGIS\Pro\bin\ArcGIS.Desktop.DataGrid.Contrib.Wpf.dll</HintPath>
+      <CopyLocal>False</CopyLocal>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="ArcGIS.Desktop.Resources">
+      <HintPath>C:\Program Files\ArcGIS\Pro\bin\ArcGIS.Desktop.Resources.dll</HintPath>
+      <CopyLocal>False</CopyLocal>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="ESRI.ArcGIS.ItemIndex">
+      <HintPath>C:\Program Files\ArcGIS\Pro\bin\ESRI.ArcGIS.ItemIndex.dll</HintPath>
+      <CopyLocal>False</CopyLocal>
+      <Private>False</Private>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Update="ConfigureAreaUnitsDlg.Designer.cs">
+      <DesignTimeSharedInput>True</DesignTimeSharedInput>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>ConfigureAreaUnitsDlg.settings</DependentUpon>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Update="ConfigureAreaUnitsDlg.settings">
+      <Generator>SettingsSingleFileGenerator</Generator>
+      <LastGenOutput>ConfigureAreaUnitsDlg.Designer.cs</LastGenOutput>
+    </None>
+  </ItemGroup>
+  <Import Project="C:\Program Files\ArcGIS\Pro\bin\Esri.ProApp.SDK.Desktop.targets" Condition="Exists('C:\Program Files\ArcGIS\Pro\bin\Esri.ProApp.SDK.Desktop.targets') AND !Exists('Esri.ArcGISPro.Extensions.targets')" />
+</Project>
