@@ -1,11 +1,27 @@
-﻿<ArcGIS defaultAssembly="ParcelsAddin.dll" defaultNamespace="ParcelsAddin" xmlns="http://schemas.esri.com/DADF/Registry" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://schemas.esri.com/DADF/Registry file:///C:/Program%20Files/ArcGIS/Pro/bin/ArcGIS.Desktop.Framework.xsd">
+﻿<!--
+/* Copyright 2023 Esri
+ *
+ * Licensed under the Apache License Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */  
+-->
+<ArcGIS defaultAssembly="ParcelsAddin.dll" defaultNamespace="ParcelsAddin" xmlns="http://schemas.esri.com/DADF/Registry" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://schemas.esri.com/DADF/Registry file:///C:/Program%20Files/ArcGIS/Pro/bin/ArcGIS.Desktop.Framework.xsd">
   <AddInInfo id="{d4508f6d-9f77-436e-a950-574f3af20720}" version="1.0" desktopVersion="3.0.36056">
     <Name>Parcel Utilities</Name>
     <Description>Parcel fabric tools</Description>
     <Image>Images\FabricAddinDesktop32.png</Image>
     <Author>ArcGIS Pro SDK Team, arcgisprosdk@esri.com</Author>
     <Company>Esri</Company>
-    <Date>10/4/2022 12:55:25 PM</Date>
+    <Date>02/9/2023 12:55:25 PM</Date>
     <Subject>Editing, Geodatabase, Geometry</Subject>
     <!-- Note subject can be one or more of these topics:
                     Content, Framework, Editing, Geodatabase, Geometry, Geoprocessing, Layouts, Map Authoring, Map Exploration -->
