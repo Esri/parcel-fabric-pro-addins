@@ -73,9 +73,9 @@ namespace ParcelsAddin
 
         foreach (var parcelType in parcelTypes)
         {
-          var fLyr = _parcelFabricLayer.GetParcelPolygonLayerByTypeNameAsync(parcelType).Result.FirstOrDefault();
+          var fLyr = _parcelFabricLayer.GetParcelPolygonLayerByTypeNameAsync(parcelType).Result;
           if (fLyr != null)
-            _featureLayer.Add(fLyr);
+            _featureLayer.AddRange(fLyr);
         }
 
         FeatureClassDefinition fcDefinition =
@@ -105,9 +105,11 @@ namespace ParcelsAddin
       var cgUtils = new COGOUtils();
       var parcUtils = new ParcelUtils();
       string sReportResult = "";
-      var ParcelReportDlg = new ParcelReportDialog();
-      ParcelReportDlg.Owner = FrameworkApplication.Current.MainWindow;
-      ParcelReportDlg.DataContext = _VM;
+      var ParcelReportDlg = new ParcelReportDialog
+      {
+        Owner = FrameworkApplication.Current.MainWindow,
+        DataContext = _VM
+      };
       var insp = new ArcGIS.Desktop.Editing.Attributes.Inspector();
       QueuedTask.Run(async () =>
       {
@@ -156,7 +158,7 @@ namespace ParcelsAddin
             {
               var tol = 0.03 / _datasetMetersPerUnit; //3 cms
               if (!_isPCS)
-                tol = Math.Atan(tol/(6378100/ _datasetMetersPerUnit));
+                tol = Math.Atan(tol/(6378100.0/ _datasetMetersPerUnit));
               parcelEdgeCollection = await _parcelFabricLayer.GetSequencedParcelEdgeInfoAsync(featlyr.Key,
                   oid, geometry as MapPoint, tol,
                    ParcelLineToEdgeRelationship.BothVerticesMatchAnEdgeEnd |
@@ -180,11 +182,10 @@ namespace ParcelsAddin
             if (parcelEdgeCollection == null)
               continue;
 
-            object[] parcelTraverseInfo;
             bool isClosedloop = false;
             bool allLinesHaveCogo = false;
             if (!ParcelUtils.ParcelEdgeAnalysis(parcelEdgeCollection, out isClosedloop, out allLinesHaveCogo,
-              out parcelTraverseInfo))
+              out object[] parcelTraverseInfo))
               sReportResult += "No traverse information available.";
 
             var radiusList = new List<double>();
