@@ -159,8 +159,9 @@ namespace ParcelsAddin
               var tol = 0.03 / _datasetMetersPerUnit; //3 cms
               if (!_isPCS)
                 tol = Math.Atan(tol/(6378100.0/ _datasetMetersPerUnit));
-              parcelEdgeCollection = await _parcelFabricLayer.GetSequencedParcelEdgeInfoAsync(featlyr.Key,
-                  oid, geometry as MapPoint, tol,
+              parcelEdgeCollection = 
+                await _parcelFabricLayer.GetSequencedParcelEdgeInfoAsync(
+                   featlyr.Key, oid, geometry as MapPoint, tol,
                    ParcelLineToEdgeRelationship.BothVerticesMatchAnEdgeEnd |
                    ParcelLineToEdgeRelationship.StartVertexMatchesAnEdgeEnd |
                    ParcelLineToEdgeRelationship.EndVertexMatchesAnEdgeEnd |

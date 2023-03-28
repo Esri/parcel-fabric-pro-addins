@@ -300,18 +300,21 @@ namespace ParcelsAddin
                 Coordinate3D vect = new();
                 vect.SetPolarComponents(radiansDirection, 0.0, chordDistance);
                 if (ClockwiseDownStreamEdgePosition(myLineInfo) == highestPosition)
-                {//this line's start matches last line's end
+                //this line's start matches last line's end
                   vectorChord.Add(vect);
-                  arcLengthList.Add(dArclength);
-                  if (Math.Abs(dArclength / dRadius) > Math.PI)
+                else
+                  vectorChord.Add(null);
+
+                arcLengthList.Add(dArclength);
+                if (Math.Abs(dArclength / dRadius) > Math.PI)
                     isMajorList.Add(true);
-                  else
-                    isMajorList.Add(false);
-                  if (myLineInfo.IsReversed)
-                    radiusList.Add(-dRadius); //this is for properly calcluating area sector
-                  else
-                    radiusList.Add(dRadius);
-                }
+                else
+                  isMajorList.Add(false);
+                if (myLineInfo.IsReversed)
+                  radiusList.Add(-dRadius); //this is for properly calcluating area sector
+                else
+                  radiusList.Add(dRadius);
+
               }
               else //not a cogo circular arc, nor a cogo line 
               {    //partial or no circular arc or line COGO
@@ -338,12 +341,14 @@ namespace ParcelsAddin
               Coordinate3D vect = new();
               vect.SetPolarComponents(radiansDirection, 0.0, (double)distance);
               if (ClockwiseDownStreamEdgePosition(myLineInfo) == highestPosition)
-              {//this line's start matches previous line's end
+              //this line's start matches previous line's end
                 vectorChord.Add(vect);
-                arcLengthList.Add(null);
-                radiusList.Add(null);
-                isMajorList.Add(false);
-              }
+              else
+                vectorChord.Add(null);
+              
+              arcLengthList.Add(null);
+              radiusList.Add(null);
+              isMajorList.Add(false);
             }
             var UpstreamPos = ClockwiseUpStreamEdgePosition(myLineInfo);
             highestPosition =
