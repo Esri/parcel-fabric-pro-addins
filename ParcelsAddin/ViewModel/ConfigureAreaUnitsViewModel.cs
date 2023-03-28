@@ -28,11 +28,10 @@ namespace ParcelsAddin
   internal class ConfigureAreaUnitsViewModel : PropertyChangedBase
   {
     private ConfigureAreaUnitsModel _ConfigureAreaUnitsModel;
-    private string _areaUnitName;
-    private string _areaValueText;
+    private readonly string _areaUnitName;
+    private readonly string _areaValueText;
     private List<string> _areaUnitsNameList;
     private Dictionary<string, long> _dictAreaUnitsCodeLookup; // = new Dictionary<string, long>();
-    private double _largeParcelAreaInSquareMeters;
     private long _largeParcelAreaCode;
 
     public ICommand OKCommand
@@ -58,7 +57,6 @@ namespace ParcelsAddin
 
       _areaUnitName = "Acres";
       _largeParcelAreaCode = 109402;
-      _largeParcelAreaInSquareMeters = 1011.715;//1/4 Acre default large parcel
 
 
       string sParamString = ConfigureAreaUnitsDlg.Default["LastUsedParams"] as string;
@@ -67,7 +65,6 @@ namespace ParcelsAddin
       {
         _areaUnitName = "Acres";
         _areaValueText = "0.25";
-        _largeParcelAreaInSquareMeters = 1011.715;// 1/4 Acre default large parcel
         _largeParcelAreaCode = 109402;
       }
       else

@@ -183,7 +183,7 @@ namespace ParcelsAddin
             object[] parcelTraverseInfo;
             bool isClosedloop = false;
             bool allLinesHaveCogo = false;
-            if (!parcUtils.ParcelEdgeAnalysis(parcelEdgeCollection, out isClosedloop, out allLinesHaveCogo,
+            if (!ParcelUtils.ParcelEdgeAnalysis(parcelEdgeCollection, out isClosedloop, out allLinesHaveCogo,
               out parcelTraverseInfo))
               sReportResult += "No traverse information available.";
 
@@ -220,7 +220,7 @@ namespace ParcelsAddin
               var traverseCourses = new List<Coordinate3D>();
               foreach (Coordinate3D vec in parcelTraverseInfo[0] as List<object>)
                 traverseCourses.Add(vec);
-              var result = cgUtils.CompassRuleAdjust(traverseCourses, startPoint, startPoint, radiusList, arcLengthList, isMajorList,
+              var result = COGOUtils.CompassRuleAdjust(traverseCourses, startPoint, startPoint, radiusList, arcLengthList, isMajorList,
                 out Coordinate2D miscloseVector, out double dRatio, out double cogoArea);
               sReportResult += "Misclose ratio: 1:" + dRatio.ToString("F0") + Environment.NewLine;
               sReportResult += "COGO Area: " + cogoArea.ToString("F0") + Environment.NewLine;
@@ -229,7 +229,7 @@ namespace ParcelsAddin
               var idx = 0;
               foreach (var vec in traverseCourses)
               {
-                var direction = cgUtils.ConvertNorthAzimuthDecimalDegreesToDisplayUnit(vec.Azimuth * 180.0 / Math.PI, _dialogDirectionUnit);
+                var direction = COGOUtils.ConvertNorthAzimuthDecimalDegreesToDisplayUnit(vec.Azimuth * 180.0 / Math.PI, _dialogDirectionUnit);
                 if (radiusList[idx] == 0.0)
                   sReportResult += "  " + direction + ", " + vec.Magnitude.ToString("F2") + Environment.NewLine;
                 else
@@ -263,7 +263,7 @@ namespace ParcelsAddin
                 if (dir != null)
                 {
                   var direction = (double)dir;
-                  var sVal = cgUtils.ConvertNorthAzimuthDecimalDegreesToDisplayUnit(direction, _dialogDirectionUnit);
+                  var sVal = COGOUtils.ConvertNorthAzimuthDecimalDegreesToDisplayUnit(direction, _dialogDirectionUnit);
                   directionStr[idx++] = sVal;
                 }
                 else
@@ -327,7 +327,6 @@ namespace ParcelsAddin
                 idx++;
               }
               #endregion
-
             }
           }
         }

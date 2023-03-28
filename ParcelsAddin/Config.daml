@@ -19,7 +19,7 @@
     <Name>Parcel Utilities</Name>
     <Description>Parcel fabric tools</Description>
     <Image>Images\FabricAddinDesktop32.png</Image>
-    <Author>ArcGIS Pro SDK Team, arcgisprosdk@esri.com</Author>
+    <Author>Esri Parcel Team</Author>
     <Company>Esri</Company>
     <Date>02/9/2023 12:55:25 PM</Date>
     <Subject>Editing, Geodatabase, Geometry</Subject>
@@ -30,9 +30,6 @@
     <insertModule id="ParcelsAddin_Module" className="Module1" autoLoad="false" caption="Module1">
       <!-- uncomment to have the control hosted on a separate tab-->
       <tabs>
-        <tabGroups>
-          <tabGroup id="esri_parcelfabric_CoreTabGroup"></tabGroup>
-        </tabGroups>
         <tab id="ParcelsAddin_Tab1" caption="Utilities (Add-in)" condition="esri_editing_HasParcelFabricCondition" tabGroupID="esri_parcelfabric_CoreTabGroup">
           <group refID="ParcelsAddin_Group1" />
           <group refID="ParcelsAddin_Group2" />

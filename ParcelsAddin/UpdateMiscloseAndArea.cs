@@ -39,7 +39,6 @@ namespace ParcelsAddin
   {
     private List<FeatureLayer> _featureLayer;
     private readonly ParcelUtils _parcelUtils = new();
-    private double _minimumAcreStatedAreaTolerance = 0.25; //switch area unit to acres if greater than or equal to 1/4 acre
 
     protected override void OnUpdate()
     {
@@ -55,7 +54,7 @@ namespace ParcelsAddin
           this.DisabledTooltip = "There is no fabric in the map.";
           return;
         }
-        if (_parcelUtils.HasParcelSelection(myParcelFabricLayer))
+        if (ParcelUtils.HasParcelSelection(myParcelFabricLayer))
         {
           this.Enabled = true;  //tool is enabled  
                                 //this.Tooltip = "";
@@ -88,9 +87,9 @@ namespace ParcelsAddin
         string sParamString = ConfigureAreaUnitsDlg.Default["LastUsedParams"] as string;
         string[] sParams = sParamString.Split('|'); //"Acres|0.25|area unit code|1011.715"
 
-        long.TryParse(sParams[2], out _largeParcelUnitCode);
-        Double.TryParse(sParams[3], out _largeParcelToleranceInSqMeters);
-        Double.TryParse(sParams[4], out _sqMetersPerAreaUnit);
+        _ = long.TryParse(sParams[2], out _largeParcelUnitCode);
+        _ = double.TryParse(sParams[3], out _largeParcelToleranceInSqMeters);
+        _ = double.TryParse(sParams[4], out _sqMetersPerAreaUnit);
       }
       catch
       {; }
@@ -109,7 +108,7 @@ namespace ParcelsAddin
         if (recordsLyr == null)
           return "There is no records layer in the map.";
         //...confirm we're not editing default version geodatabase.
-        if (_parcelUtils.IsDefaultVersionOnFeatureService(recordsLyr))
+        if (ParcelUtils.IsDefaultVersionOnFeatureService(recordsLyr))
           return "Editing on the default version is not available.";
 
         double _metersPerUnit = 1;
@@ -126,10 +125,11 @@ namespace ParcelsAddin
 
         foreach (var parcelType in parcelTypes)
         {
-          var fLyr = myParcelFabricLayer.GetParcelPolygonLayerByTypeNameAsync(parcelType).Result.FirstOrDefault();
-          if (fLyr != null)
+          var fLyrList = myParcelFabricLayer.GetParcelPolygonLayerByTypeNameAsync(parcelType).Result;
+          if (fLyrList == null) continue;
+          foreach (var fLyr in fLyrList)
           {
-            if (fLyr.IsVisible)
+            if (fLyr.SelectionCount > 0)
               _featureLayer.Add(fLyr);
           }
         }
@@ -238,7 +238,7 @@ namespace ParcelsAddin
                     var radiansDirection = ((double)direction * Math.PI / 180.0) + flip;
                     Coordinate3D vect = new ();
                     vect.SetPolarComponents(radiansDirection, 0.0, chordDistance);
-                    if (_parcelUtils.ClockwiseDownStreamEdgePosition(myLineInfo) == highestPosition)
+                    if (ParcelUtils.ClockwiseDownStreamEdgePosition(myLineInfo) == highestPosition)
                     {//this line's start matches last line's end
                       traverseCourses.Add(vect);
                       arcLengthList.Add(dArclength);
@@ -262,7 +262,7 @@ namespace ParcelsAddin
                   var radiansDirection = ((double)direction * Math.PI / 180.0) + flip;
                   Coordinate3D vect = new();
                   vect.SetPolarComponents(radiansDirection, 0.0, (double)distance);
-                  if (_parcelUtils.ClockwiseDownStreamEdgePosition(myLineInfo) == highestPosition)
+                  if (ParcelUtils.ClockwiseDownStreamEdgePosition(myLineInfo) == highestPosition)
                   {//this line's start matches last line's end
                     traverseCourses.Add(vect);
                     arcLengthList.Add(0.0);
@@ -272,7 +272,7 @@ namespace ParcelsAddin
                 }
                 if (edgeHasCOGOConnectivity)
                 {
-                  var UpstreamPos = _parcelUtils.ClockwiseUpStreamEdgePosition(myLineInfo);
+                  var UpstreamPos = ParcelUtils.ClockwiseUpStreamEdgePosition(myLineInfo);
                   highestPosition =
                     highestPosition > UpstreamPos ? highestPosition : UpstreamPos;
                 }
@@ -286,7 +286,7 @@ namespace ParcelsAddin
             }
             if (canTraverseCOGO)
             {
-              var result = cgUtils.CompassRuleAdjust(traverseCourses, startPoint, startPoint, radiusList, arcLengthList, isMajorList,
+              var result = COGOUtils.CompassRuleAdjust(traverseCourses, startPoint, startPoint, radiusList, arcLengthList, isMajorList,
                 out Coordinate2D miscloseVector, out double dRatio, out double calcArea);
               Dictionary<string, object> ParcelAttributes = new Dictionary<string, object>();
 

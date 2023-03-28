@@ -39,7 +39,7 @@ namespace ParcelsAddin
 {
   internal class COGOUtils
   {
-    internal string ConvertNorthAzimuthDecimalDegreesToDisplayUnit(double InDirection, DisplayUnitFormat incomingDirectionFormat)
+    internal static string ConvertNorthAzimuthDecimalDegreesToDisplayUnit(double InDirection, DisplayUnitFormat incomingDirectionFormat)
     {
       if (incomingDirectionFormat == null)
         return "";
@@ -83,7 +83,7 @@ namespace ParcelsAddin
       return FormatDirectionDashesToDegMinSecSymbols(dir);
     }
 
-    internal List<Coordinate2D> CompassRuleAdjust(List<Coordinate3D> TraverseCourses, Coordinate2D StartPoint, Coordinate2D EndPoint,
+    internal static List<Coordinate2D> CompassRuleAdjust(List<Coordinate3D> TraverseCourses, Coordinate2D StartPoint, Coordinate2D EndPoint,
       List<double> RadiusList, List<double> ArclengthList, List<bool> IsMajorList,
        out Coordinate2D MiscloseVector, out double MiscloseRatio, out double COGOArea)
     {
@@ -220,17 +220,17 @@ namespace ParcelsAddin
   }
   internal class ParcelUtils
   {
-    internal double ClockwiseDownStreamEdgePosition(ParcelLineInfo line)
+    internal static double ClockwiseDownStreamEdgePosition(ParcelLineInfo line)
     {
       return line.IsReversed ? line.EndPositionOnParcelEdge : line.StartPositionOnParcelEdge;
     }
 
-    internal double ClockwiseUpStreamEdgePosition(ParcelLineInfo line)
+    internal static double ClockwiseUpStreamEdgePosition(ParcelLineInfo line)
     {
       return line.IsReversed ? line.StartPositionOnParcelEdge : line.EndPositionOnParcelEdge;
     }
 
-    internal bool ParcelEdgeAnalysis(ParcelEdgeCollection parcelEdgeCollection, out bool isClosedLoop,
+    internal static bool ParcelEdgeAnalysis(ParcelEdgeCollection parcelEdgeCollection, out bool isClosedLoop,
       out bool allLinesHaveCOGO, out object[] traverseInfo)
     {
       //traverseInfo object list items:
@@ -354,7 +354,6 @@ namespace ParcelsAddin
           //to the end of this edge
           {
             isClosedLoop = false; // no loop connectivity
-            //break;
           }
         }
         return true;
@@ -372,7 +371,7 @@ namespace ParcelsAddin
       }
     }
 
-    internal bool IsDefaultVersionOnFeatureService(FeatureLayer featureLayer)
+    internal static bool IsDefaultVersionOnFeatureService(FeatureLayer featureLayer)
     {
       using (Table table = featureLayer.GetTable())
       {
@@ -381,24 +380,22 @@ namespace ParcelsAddin
         if (geodatabase.IsVersioningSupported())
         {
           using (VersionManager versionManager = geodatabase.GetVersionManager())
+          try
           {
-            try
-            {
-              var currentVersion = versionManager.GetCurrentVersion();
-              if (currentVersion.GetParent() == null) //default version
-                return true;// "Editing on the default version is not available.";
-            }
-            catch
-            {
-              return true;
-            }
+            var currentVersion = versionManager.GetCurrentVersion();
+            if (currentVersion.GetParent() == null) //default version
+              return true;// "Editing on the default version is not available.";
+          }
+          catch
+          {
+            return true;
           }
         }
       }
       return false;
     }
 
-    internal bool HasParcelSelection(ParcelLayer parcelLayer)
+    internal static bool HasParcelSelection(ParcelLayer parcelLayer)
     {
       bool enableSate = false;
       if (parcelLayer == null)
@@ -410,11 +407,10 @@ namespace ParcelsAddin
         foreach (var fLyr in fLyrList)
         {
           if (fLyr != null && !enableSate)
-          {
             enableSate = fLyr.SelectionCount > 0;
-            break;
-          }
         }
+        if (enableSate)
+          break;
       }
       return enableSate;
     }

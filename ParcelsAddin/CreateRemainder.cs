@@ -36,7 +36,6 @@ namespace ParcelsAddin
 {
   internal class CreateRemainder : Button
   {
-    private readonly ParcelUtils _parcelUtils = new();
     protected override void OnUpdate()
     {
       QueuedTask.Run( () =>
@@ -51,7 +50,7 @@ namespace ParcelsAddin
           this.DisabledTooltip = "There is no fabric in the map.";
           return;
         }
-        if (_parcelUtils.HasParcelSelection(myParcelFabricLayer))
+        if (ParcelUtils.HasParcelSelection(myParcelFabricLayer))
         {
           this.Enabled = true;  //tool is enabled  
                                 //this.Tooltip = "";
@@ -73,7 +72,6 @@ namespace ParcelsAddin
         MessageBox.Show("Insufficient License Level.");
         return;
       }
-      var cgUtils = new COGOUtils();
 
       string sTargetParcelType = "";
       string sCookieCutterParcelType = "";
@@ -92,7 +90,7 @@ namespace ParcelsAddin
         if (recordsLyr == null)
           return "There is no records layer in the map.";
         //...confirm we're not editing default version geodatabase.
-        if (_parcelUtils.IsDefaultVersionOnFeatureService(recordsLyr))
+        if (ParcelUtils.IsDefaultVersionOnFeatureService(recordsLyr))
           return "Editing on the default version is not available.";
 
         double _metersPerUnit = 1;
@@ -140,17 +138,17 @@ namespace ParcelsAddin
         try
         {
           var typeNamesEnum = await myParcelFabricLayer.GetParcelPolygonLayerByTypeNameAsync(sTargetParcelType);
-          if (typeNamesEnum.Count() == 0)
+          if (typeNamesEnum.Count == 0)
             return "Target parcel type " + sTargetParcelType + " not found. Please try again.";
           var featTargetLyr = typeNamesEnum.FirstOrDefault();
 
-          List<long> ids = new List<long>((featSrcLyr as FeatureLayer).GetSelection().GetObjectIDs());
+          List<long> ids = new(featSrcLyr.GetSelection().GetObjectIDs());
           var myKVP2 = new KeyValuePair<MapMember, List<long>>(featSrcLyr, ids);
           var sourceParcels = new List<KeyValuePair<MapMember, List<long>>> { myKVP2 };
 
           //Build the Clip geometry and also Confirm all selected parcels belong to the active record
           var enumSel = featSrcLyr.GetSelection().GetObjectIDs().GetEnumerator();
-          List<Polygon> polys = new List<Polygon>();
+          List<Polygon> polys = new();
           int iCnt = 0;
           string sid1 = "";
           while (enumSel.MoveNext())
@@ -172,12 +170,12 @@ namespace ParcelsAddin
               return sMsg;
             }
           }
-          if (sid1.Trim() == String.Empty)
+          if (sid1.Trim() == string.Empty)
           {
             string sMsg = "Selected parcel(s) do not have a record.";
             return sMsg;
           }
-          Guid guid = new Guid(sid1);
+          Guid guid = new(sid1);
           if (!await myParcelFabricLayer.SetActiveRecordAsync(guid))
           {
             string sMsg = "Selected parcel(s) record could not be used.";
@@ -188,22 +186,22 @@ namespace ParcelsAddin
           //use a small negative buffer to avoid pulling in neighbor parcels
           var tol = 0.03 / _metersPerUnit; //3 cms
           if (!_isPCS)
-            tol = Math.Atan(tol / (6378100 / _metersPerUnit));
+            tol = Math.Atan(tol / (6378100.0 / _metersPerUnit));
 
           var SearchGeometry = GeometryEngine.Instance.Buffer(ClipGeometry, -tol);//this is used for the search only
 
           //get the intersecting non-historic parcels of the target type that are in a different record
-          SpatialQueryFilter pSpatQu = new SpatialQueryFilter();
+          SpatialQueryFilter pSpatQu = new();
           pSpatQu.FilterGeometry = SearchGeometry;
           pSpatQu.SpatialRelationship = SpatialRelationship.Intersects;
-          pSpatQu.WhereClause = "CREATEDBYRECORD <> '" + sid1 + "'";
-          List<long> idTargetParcel = new List<long>();
-          using (RowCursor rowCursor = featTargetLyr.Search(pSpatQu))
+          pSpatQu.WhereClause = "createdbyrecord <> '" + sid1 + "'" + " AND retiredbyrecord IS NULL";
+          List<long> idTargetParcel = new();
+          using (RowCursor rowCursor = featTargetLyr.GetFeatureClass().Search(pSpatQu))
           {
             while (rowCursor.MoveNext())
             {
-              using (Row rowFeat = rowCursor.Current)
-                idTargetParcel.Add(rowFeat.GetObjectID());
+              using Row rowFeat = rowCursor.Current;
+              idTargetParcel.Add(rowFeat.GetObjectID());
             }
           }
 
@@ -231,7 +229,7 @@ namespace ParcelsAddin
         }
         catch (Exception ex)
         {
-          if (ex.Message.Trim() == String.Empty)
+          if (ex.Message.Trim() == string.Empty)
             return "Unspecified error encountered.";
           else
             return ex.Message;

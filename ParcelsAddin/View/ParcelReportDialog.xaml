@@ -35,7 +35,7 @@
     </controls:ProWindow.Resources>
     <Grid>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="370*"/>
+            <ColumnDefinition Width="Auto"/>
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
