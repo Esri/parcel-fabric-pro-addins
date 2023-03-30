@@ -419,5 +419,99 @@ namespace ParcelsAddin
       }
       return enableSate;
     }
+
+    internal static List<long> FilterLayerOIDsAndSelectionByRecord(FeatureLayer featLayer, List<long> incomingOIDs = null, 
+      ParcelRecord Record = null)
+    {//if incomingOIDs is NULL, uses only selection
+      List<long> idsOut = new();
+      if (incomingOIDs == null)
+        incomingOIDs = idsOut = new List<long>(featLayer.GetSelection().GetObjectIDs()); //only selected features
+      else
+      {
+        idsOut.AddRange(incomingOIDs);
+        incomingOIDs.AddRange(featLayer.GetSelection().GetObjectIDs());//combine ids and selected features
+      }
+      //incomingOIDs has the oids from a selection or a set of oids passed in.
+      //These are not yet filtered by Record at this point.
+      //if there is a record then Filter
+      if (Record != null)
+      {
+        QueryFilter queryFilterSelectedFeatures = new();
+        queryFilterSelectedFeatures.WhereClause =
+          "CREATEDBYRECORD = '{" + Convert.ToString(Record.Guid) + "}'";
+        var featClass = featLayer.GetFeatureClass();
+        queryFilterSelectedFeatures.ObjectIDs = incomingOIDs;
+        //This search is the INTERSECTION of oids that filters out the oid's that are not in the record.
+        idsOut.Clear(); //rebuild the ids list based on the new filtered query.
+        using (RowCursor rowCursor = featClass.Search(queryFilterSelectedFeatures, false))
+        {
+          while (rowCursor.MoveNext())
+          {
+            using (Row rowFeat = rowCursor.Current)
+            {
+              idsOut.Add(rowFeat.GetObjectID());
+            }
+          }
+        }
+      }
+      return new List<long>(idsOut);
+    }
+
+    internal static async Task<string> GetParcelTypeNameFromFeatureLayer(ParcelLayer myParcelFabricLayer, 
+      FeatureLayer featLayer, GeometryType geomType)
+    {
+      if (featLayer == null) //nothing to do return empty string
+        return String.Empty;
+      IEnumerable<string> parcelTypeNames = await myParcelFabricLayer.GetParcelTypeNamesAsync();
+      foreach (string parcelTypeName in parcelTypeNames)
+      {
+        if (geomType == GeometryType.Polygon)
+        {
+          var polygonLyrParcelTypeEnum = await myParcelFabricLayer.GetParcelPolygonLayerByTypeNameAsync(parcelTypeName);
+          foreach (FeatureLayer lyr in polygonLyrParcelTypeEnum)
+            if (lyr == featLayer)
+              return parcelTypeName;
+
+          polygonLyrParcelTypeEnum = await myParcelFabricLayer.GetHistoricParcelPolygonLayerByTypeNameAsync(parcelTypeName);
+          foreach (FeatureLayer lyr in polygonLyrParcelTypeEnum)
+            if (lyr == featLayer)
+              return parcelTypeName;
+        }
+        if (geomType == GeometryType.Polyline)
+        {
+          var lineLyrParcelTypeEnum = await myParcelFabricLayer.GetParcelLineLayerByTypeNameAsync(parcelTypeName);
+          foreach (FeatureLayer lyr in lineLyrParcelTypeEnum)
+            if (lyr == featLayer)
+              return parcelTypeName;
+
+          lineLyrParcelTypeEnum = await myParcelFabricLayer.GetHistoricParcelLineLayerByTypeNameAsync(parcelTypeName);
+          foreach (FeatureLayer lyr in lineLyrParcelTypeEnum)
+            if (lyr == featLayer)
+              return parcelTypeName;
+        }
+      }
+      return string.Empty;
+    }
+
+    internal static async Task<FeatureLayer> GetFirstFeatureLayerFromParcelTypeName(ParcelLayer myParcelFabricLayer, 
+      string ParcelTypeName, GeometryType geomType)
+    {
+      if (geomType == GeometryType.Polygon)
+      {
+        var targetPolygonTypeEnum =
+          await myParcelFabricLayer.GetParcelPolygonLayerByTypeNameAsync(ParcelTypeName);
+        if (targetPolygonTypeEnum != null)
+          return targetPolygonTypeEnum.FirstOrDefault();
+      }
+      else
+      {
+        var targetPolylineTypeEnum =
+          await myParcelFabricLayer.GetParcelLineLayerByTypeNameAsync(ParcelTypeName);
+        if (targetPolylineTypeEnum != null)
+          return targetPolylineTypeEnum.FirstOrDefault();
+      }
+      return null;
+    }
+
   }
 }
