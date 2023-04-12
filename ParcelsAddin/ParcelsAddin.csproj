@@ -140,6 +140,11 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Update="ConfigurationsLastUsed.Designer.cs">
+      <DesignTimeSharedInput>True</DesignTimeSharedInput>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>ConfigurationsLastUsed.settings</DependentUpon>
+    </Compile>
     <Compile Update="ConfigureAreaUnitsDlg.Designer.cs">
       <DesignTimeSharedInput>True</DesignTimeSharedInput>
       <AutoGen>True</AutoGen>
@@ -147,6 +152,10 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
+    <None Update="ConfigurationsLastUsed.settings">
+      <Generator>SettingsSingleFileGenerator</Generator>
+      <LastGenOutput>ConfigurationsLastUsed.Designer.cs</LastGenOutput>
+    </None>
     <None Update="ConfigureAreaUnitsDlg.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
       <LastGenOutput>ConfigureAreaUnitsDlg.Designer.cs</LastGenOutput>

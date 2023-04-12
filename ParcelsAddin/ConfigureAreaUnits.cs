@@ -48,11 +48,11 @@ namespace ParcelsAddin
       {
         long largeParcelAreaUnitCode = _VM.ConfigureAreaUnitsModel.AreaUnitsCodeLookup[_VM.ConfigureAreaUnitsModel.AreaUnitName];
         _VM.ConfigureAreaUnitsModel.LargeParcelAreaUnitCode = largeParcelAreaUnitCode;
-        ConfigureAreaUnitsDlg.Default["LastUsedParams"] = _VM.ConfigureAreaUnitsModel.AreaUnitName + "|" +
+        ConfigurationsLastUsed.Default["ConfigureAreaUnitsLastUsedParams"] = _VM.ConfigureAreaUnitsModel.AreaUnitName + "|" +
           _VM.ConfigureAreaUnitsModel.LargeAreaValueText + "|" + largeParcelAreaUnitCode.ToString()
           + "|" + _VM.ConfigureAreaUnitsModel.LargeParcelAreaInSquareMeters.ToString()
           + "|" + _VM.ConfigureAreaUnitsModel.SquareMetersPerAreaUnit.ToString();
-        ConfigureAreaUnitsDlg.Default.Save();//comment out if you only want to save settings within each app session
+        ConfigurationsLastUsed.Default.Save();//comment out if you only want to save settings within each app session
       }
       #endregion Collect parameters from dialog and save to settings
     }

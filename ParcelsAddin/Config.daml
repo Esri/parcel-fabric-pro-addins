@@ -15,13 +15,13 @@
  */  
 -->
 <ArcGIS defaultAssembly="ParcelsAddin.dll" defaultNamespace="ParcelsAddin" xmlns="http://schemas.esri.com/DADF/Registry" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://schemas.esri.com/DADF/Registry file:///C:/Program%20Files/ArcGIS/Pro/bin/ArcGIS.Desktop.Framework.xsd">
-  <AddInInfo id="{d4508f6d-9f77-436e-a950-574f3af20720}" version="1.0" desktopVersion="3.0.36056">
+  <AddInInfo id="{d4508f6d-9f77-436e-a950-574f3af20720}" version="1.1" desktopVersion="3.0.36056">
     <Name>Parcel Utilities</Name>
     <Description>Parcel fabric tools</Description>
     <Image>Images\FabricAddinDesktop32.png</Image>
     <Author>Esri Parcel Team</Author>
     <Company>Esri</Company>
-    <Date>02/9/2023 12:55:25 PM</Date>
+    <Date>04/12/2023 8:55:25 AM</Date>
     <Subject>Editing, Geodatabase, Geometry</Subject>
     <!-- Note subject can be one or more of these topics:
                     Content, Framework, Editing, Geodatabase, Geometry, Geoprocessing, Layouts, Map Authoring, Map Exploration -->
@@ -30,17 +30,18 @@
     <insertModule id="ParcelsAddin_Module" className="Module1" autoLoad="false" caption="Module1">
       <!-- uncomment to have the control hosted on a separate tab-->
       <tabs>
-        <tab id="ParcelsAddin_Tab1" caption="Utilities (Add-in)" condition="esri_editing_HasParcelFabricCondition" tabGroupID="esri_parcelfabric_CoreTabGroup">
+        <tab id="ParcelsAddin_Tab1" caption="Utilities (Add-in)" condition="esri_editing_HasParcelFabricCondition" tabGroupID="esri_parcelfabric_CoreTabGroup" keytip="U">
           <group refID="ParcelsAddin_Group1" />
           <group refID="ParcelsAddin_Group2" />
           <group refID="ParcelsAddin_Group3" />
           <group refID="ParcelsAddin_Group4" />
+					<group refID="ParcelsAddin_Group5" />
         </tab>
       </tabs>
       <groups>
         <!-- comment this out if you have no controls on the Addin tab to avoid
               an empty group-->
-        <group id="ParcelsAddin_Group1" caption="Manage Edits" appearsOnAddInTab="false">
+        <group id="ParcelsAddin_Group1" caption="Manage Edits" appearsOnAddInTab="false" keytip="M">
           <!-- host controls within groups -->
           <button refID="ParcelsAddin_EditOperationUndo" size="large" />
           <button refID="ParcelsAddin_EditOperationRedo" size="large" />
@@ -48,48 +49,74 @@
           <button refID="esri_editing_DiscardEditsBtn" size="middle" />
           <!--<button refID="ParcelsAddin_ConfigureAreaUnits" size="large" />-->
         </group>
-        <group id="ParcelsAddin_Group2" caption="Selection" appearsOnAddInTab="false">
+        <group id="ParcelsAddin_Group2" caption="Selection" appearsOnAddInTab="false" keytip="S">
           <!-- host controls within groups -->
           <button refID="esri_mapping_selectByRectangleTool" size="large" />
           <button refID="esri_editing_ShowAttributes" size="middle" />
           <button refID="esri_mapping_clearSelectionButton" size="middle" />
         </group>
-        <group id="ParcelsAddin_Group3" caption="Edit" appearsOnAddInTab="false">
+        <group id="ParcelsAddin_Group3" caption="Edit" appearsOnAddInTab="false" keytip="E">
           <!-- host controls within groups -->
           <button refID="ParcelsAddin_CreateRemainder" size="large" />
           <splitButton refID="ParcelsAddin_UpdateMiscloseAndAreaSplitButton" />
         </group>
-        <group id="ParcelsAddin_Group4" caption="Measure" appearsOnAddInTab="false">
+        <group id="ParcelsAddin_Group4" caption="Measure" appearsOnAddInTab="false" keytip="ME">
           <!-- host controls within groups -->
           <tool refID="esri_editing_measureDirectionDistanceTool" size="small" />
           <tool refID="esri_editing_measureOffsetTool" size="small" />
           <tool refID="esri_editing_measureAngleTool" size="small" />
           <tool refID="ParcelsAddin_ParcelReportTool" size="large" />
         </group>
+				<group id="ParcelsAddin_Group5" caption="Files" appearsOnAddInTab="false" keytip="F">
+					<!-- host controls within groups -->
+					<tool refID="ParcelsAddin_ExportMenu" size="large" />
+				</group>
       </groups>
       <controls>
         <!-- add your controls here -->
-        <button id="ParcelsAddin_UpdateMiscloseAndArea" caption="Update Misclose And Area" className="UpdateMiscloseAndArea" loadOnClick="false" smallImage="Images\UpdateMiscloseArea16.png" largeImage="Images\UpdateMiscloseArea32.png">
+        <button id="ParcelsAddin_UpdateMiscloseAndArea" caption="Update Misclose And Area" className="UpdateMiscloseAndArea" 
+								loadOnClick="false" smallImage="Images\UpdateMiscloseArea16.png" largeImage="Images\UpdateMiscloseArea32.png"
+								keytip="U">
           <tooltip heading="Update Misclose And Area">
 						Update the misclose and calculated area on selected parcels.<disabledText /></tooltip>
         </button>
-        <tool id="ParcelsAddin_ParcelReportTool" caption="Parcel Report" className="ParcelReportTool" loadOnClick="true" smallImage="Images\ParcelReport16.png" largeImage="Images\ParcelReport32.png" condition="esri_mapping_mapPane">
+        <tool id="ParcelsAddin_ParcelReportTool" caption="Parcel Report" className="ParcelReportTool" 
+							loadOnClick="true" smallImage="Images\ParcelReport16.png" largeImage="Images\ParcelReport32.png" 
+							condition="esri_mapping_mapPane" keytip="PR">
           <tooltip heading="Parcel Report">
 						Click visible parcels to report misclose information.<disabledText /></tooltip>
         </tool>
-        <button id="ParcelsAddin_EditOperationUndo" caption="Undo" className="EditOperationUndo" loadOnClick="false" smallImage="Images\Undo16.png" largeImage="Images\Undo32.png">
+        <button id="ParcelsAddin_EditOperationUndo" caption="Undo" className="EditOperationUndo" loadOnClick="false" 
+								smallImage="Images\Undo16.png" largeImage="Images\Undo32.png" keytip="U">
           <tooltip heading="Undo">
 						Undo<disabledText /></tooltip>
         </button>
-        <button id="ParcelsAddin_EditOperationRedo" caption="Redo" className="EditOperationRedo" loadOnClick="false" smallImage="Images\Redo16.png" largeImage="Images\Redo32.png">
+        <button id="ParcelsAddin_EditOperationRedo" caption="Redo" className="EditOperationRedo" loadOnClick="false" 
+								smallImage="Images\Redo16.png" largeImage="Images\Redo32.png" keytip="R">
           <tooltip heading="Redo">
 						Redo<disabledText /></tooltip>
         </button>
-        <button id="ParcelsAddin_CreateRemainder" caption="Create Remainder" className="CreateRemainder" loadOnClick="false" smallImage="Images\ParcelRemainder16.png" largeImage="Images\ParcelRemainder32.png">
+        <button id="ParcelsAddin_CreateRemainder" caption="Create Remainder" className="CreateRemainder" loadOnClick="false" 
+								smallImage="Images\ParcelRemainder16.png" largeImage="Images\ParcelRemainder32.png" keytip="R">
           <tooltip heading="Create Remainder">Clip parcels that overlap the selected parcels. Selected parcels and clipped parcels must be the same type and in different records.<disabledText /></tooltip>
         </button>
-        <button id="ParcelsAddin_ConfigureAreaUnits" caption="Configure Area Units" className="ConfigureAreaUnits" loadOnClick="true" smallImage="pack://application:,,,/ArcGIS.Desktop.Resources;component/Images/CogWheel16.png" largeImage="pack://application:,,,/ArcGIS.Desktop.Resources;component/Images/CogWheel32.png">
+        <button id="ParcelsAddin_ConfigureAreaUnits" caption="Configure Area Units" className="ConfigureAreaUnits" loadOnClick="true" 
+								smallImage="pack://application:,,,/ArcGIS.Desktop.Resources;component/Images/CogWheel16.png" 
+								largeImage="pack://application:,,,/ArcGIS.Desktop.Resources;component/Images/CogWheel32.png"
+								keytip="C">
           <tooltip heading="Configure Area Units">Change the units for parcels larger than a specified area.<disabledText /></tooltip>
+        </button>
+        <button id="ParcelsAddin_ExportMenu_TraverseFile" caption="Traverse..." className="Export_TraverseFile" loadOnClick="false" 
+								smallImage="pack://application:,,,/ArcGIS.Desktop.Resources;component/Images/GenericExport16.png" 
+								largeImage="pack://application:,,,/ArcGIS.Desktop.Resources;component/Images/GenericExport32.png"
+								keytip="XT">
+          <tooltip heading="Export To Traverse File">Create traverse files for the selection.<disabledText /></tooltip>
+        </button>
+        <button id="ParcelsAddin_ExportMenu_ParcelReportFile" caption="Parcel Report..." className="Export_ParcelReportFile" loadOnClick="false" 
+								smallImage="pack://application:,,,/ArcGIS.Desktop.Resources;component/Images/ReportFile16.png" 
+								largeImage="pack://application:,,,/ArcGIS.Desktop.Resources;component/Images/ReportFile32.png"
+								keytip="XP">
+          <tooltip heading="Export To Parcel Report File">Create report files for the selection.<disabledText /></tooltip>
         </button>
       </controls>
       <splitButtons>
@@ -98,6 +125,14 @@
           <button refID="ParcelsAddin_ConfigureAreaUnits" />
         </splitButton>
       </splitButtons>
+      <menus>
+        <menu id="ParcelsAddin_ExportMenu" caption="Export" 
+							smallImage="pack://application:,,,/ArcGIS.Desktop.Resources;component/Images/ExportNoteIntel16.png" 
+							largeImage="pack://application:,,,/ArcGIS.Desktop.Resources;component/Images/ExportNoteIntel32.png">
+          <button refID="ParcelsAddin_ExportMenu_TraverseFile" />
+          <button refID="ParcelsAddin_ExportMenu_ParcelReportFile" />
+        </menu>
+      </menus>
     </insertModule>
   </modules>
 </ArcGIS>

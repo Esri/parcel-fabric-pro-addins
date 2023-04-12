@@ -40,6 +40,14 @@ namespace ParcelsAddin
     {
       QueuedTask.Run( () =>
       {
+        //confirm we have a license...
+        if (!ParcelUtils.HasValidLicenseForParcelLayer())
+        {
+          this.Enabled = false;
+          this.DisabledTooltip = "Insufficient license level.";
+          return;
+        }
+
         var myParcelFabricLayer =
         MapView.Active?.Map?.GetLayersAsFlattenedList().OfType<ParcelLayer>().FirstOrDefault();
 
@@ -65,14 +73,6 @@ namespace ParcelsAddin
     }
     protected override async void OnClick()
     {
-      //first confirm we have a license...
-      var lic = ArcGIS.Core.Licensing.LicenseInformation.Level;
-      if (lic < ArcGIS.Core.Licensing.LicenseLevels.Standard)
-      {
-        MessageBox.Show("Insufficient License Level.");
-        return;
-      }
-
       string sTargetParcelType = "";
       string sCookieCutterParcelType = "";
 

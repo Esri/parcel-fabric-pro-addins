@@ -59,7 +59,7 @@ namespace ParcelsAddin
       _largeParcelAreaCode = 109402;
 
 
-      string sParamString = ConfigureAreaUnitsDlg.Default["LastUsedParams"] as string;
+      string sParamString = ConfigurationsLastUsed.Default["ConfigureAreaUnitsLastUsedParams"] as string;
       string[] sParams = sParamString.Split('|'); //"Acres|0.25"
       if (sParams.Length == 0)
       {

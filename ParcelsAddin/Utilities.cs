@@ -39,7 +39,8 @@ namespace ParcelsAddin
 {
   internal class COGOUtils
   {
-    internal static string ConvertNorthAzimuthDecimalDegreesToDisplayUnit(double InDirection, DisplayUnitFormat incomingDirectionFormat)
+    internal static string ConvertNorthAzimuthDecimalDegreesToDisplayUnit(double InDirection, 
+      DisplayUnitFormat incomingDirectionFormat, bool ConvertDashesToDMSSymbols = true)
     {
       if (incomingDirectionFormat == null)
         return "";
@@ -79,18 +80,183 @@ namespace ParcelsAddin
         DirectionTypeOut = dirTypeOut,
         DirectionUnitsOut = dirUnitOut
       };
-      var dir = AngConv.ConvertToString(InDirection, iRounding, ConvDef);
-      return FormatDirectionDashesToDegMinSecSymbols(dir);
+      var dir = AngConv.ConvertToString(InDirection, iRounding, ConvDef).Replace(" ", "");
+      if (ConvertDashesToDMSSymbols)
+      {
+        dir = FormatDirectionDashesToDegMinSecSymbols(dir);
+        if (dirUnitOut == ArcGIS.Core.SystemCore.DirectionUnits.Gons)
+          dir = dir.Replace("°", "g");
+      }
+      return dir;
+    }
+
+    internal static string ConvertPolarRadiansToDisplayUnit(double InDirection,
+      DisplayUnitFormat incomingDirectionFormat, bool ConvertDashesToDMSSymbols = true)
+    {
+      if (incomingDirectionFormat == null)
+        return "";
+
+      var dirUnitIn = ArcGIS.Core.SystemCore.DirectionUnits.Radians;
+      var dirTypeIn = ArcGIS.Core.SystemCore.DirectionType.Polar;
+
+      var dirTypeOut = ArcGIS.Core.SystemCore.DirectionType.Polar;
+      var directionUnitFormat = incomingDirectionFormat.UnitFormat as CIMDirectionFormat;
+      int iRounding = directionUnitFormat.DecimalPlaces;
+
+      if (directionUnitFormat.DirectionType == ArcGIS.Core.CIM.DirectionType.NorthAzimuth)
+        dirTypeOut = ArcGIS.Core.SystemCore.DirectionType.NorthAzimuth;
+      else if (directionUnitFormat.DirectionType == ArcGIS.Core.CIM.DirectionType.SouthAzimuth)
+        dirTypeOut = ArcGIS.Core.SystemCore.DirectionType.SouthAzimuth;
+      else if (directionUnitFormat.DirectionType == ArcGIS.Core.CIM.DirectionType.Polar)
+        dirTypeOut = ArcGIS.Core.SystemCore.DirectionType.Polar;
+      else if (directionUnitFormat.DirectionType == ArcGIS.Core.CIM.DirectionType.QuadrantBearing)
+        dirTypeOut = ArcGIS.Core.SystemCore.DirectionType.QuadrantBearing;
+
+      var angleMeasurementUnit = incomingDirectionFormat.MeasurementUnit;
+      var dirUnitOut = ArcGIS.Core.SystemCore.DirectionUnits.Radians;
+      if (angleMeasurementUnit.FactoryCode == 909004)//Degrees Minutes Seconds
+        dirUnitOut = ArcGIS.Core.SystemCore.DirectionUnits.DegreesMinutesSeconds;
+      else if (angleMeasurementUnit.FactoryCode == 9102)//Decimal Degrees
+        dirUnitOut = ArcGIS.Core.SystemCore.DirectionUnits.DecimalDegrees;
+      else if (angleMeasurementUnit.FactoryCode == 9105)//Gradians
+        dirUnitOut = ArcGIS.Core.SystemCore.DirectionUnits.Gradians;
+      else if (angleMeasurementUnit.FactoryCode == 9106)//Gons
+        dirUnitOut = ArcGIS.Core.SystemCore.DirectionUnits.Gons;
+
+      var AngConv = DirectionUnitFormatConversion.Instance;
+      var ConvDef = new ConversionDefinition()
+      {
+        DirectionTypeIn = dirTypeIn,
+        DirectionUnitsIn = dirUnitIn,
+        DirectionTypeOut = dirTypeOut,
+        DirectionUnitsOut = dirUnitOut
+      };
+      var dir = AngConv.ConvertToString(InDirection, iRounding, ConvDef).Replace(" ", "");
+      if (ConvertDashesToDMSSymbols)
+      {
+        dir = FormatDirectionDashesToDegMinSecSymbols(dir);
+        if (dirUnitOut == ArcGIS.Core.SystemCore.DirectionUnits.Gons)
+          dir = dir.Replace("°", "g");
+      }
+      return dir;
+    }
+
+    internal static string ConvertDirectionDifferenceInDecimalDegreesToDisplayUnitAngle(double incomingDirectionDifference, 
+      DisplayUnitFormat incomingDirectionFormat, bool ConvertDashesToDMSSymbols = true)
+    {
+      if (incomingDirectionFormat == null)
+        return  "";
+
+      var signPrefix = incomingDirectionDifference >= 0 ? "+" : "-";
+      incomingDirectionDifference=Math.Abs(incomingDirectionDifference);
+
+      var directionUnitFormat = incomingDirectionFormat.UnitFormat as CIMDirectionFormat;
+      int iRounding = directionUnitFormat.DecimalPlaces;
+
+      var dirUnitIn = ArcGIS.Core.SystemCore.DirectionUnits.DecimalDegrees;
+      var dirUnitOut = ArcGIS.Core.SystemCore.DirectionUnits.DecimalDegrees;
+      var dirTypeIn = ArcGIS.Core.SystemCore.DirectionType.Polar;
+      var dirTypeOut = ArcGIS.Core.SystemCore.DirectionType.Polar;
+
+      var angleMeasurementUnit = incomingDirectionFormat.MeasurementUnit;
+      if (angleMeasurementUnit.FactoryCode == 909004)//Degrees Minutes Seconds
+        dirUnitOut = ArcGIS.Core.SystemCore.DirectionUnits.DegreesMinutesSeconds;
+      else if (angleMeasurementUnit.FactoryCode == 9102)//Decimal Degrees
+        dirUnitOut = ArcGIS.Core.SystemCore.DirectionUnits.DecimalDegrees;
+      else if (angleMeasurementUnit.FactoryCode == 9105)//Gradians
+        dirUnitOut = ArcGIS.Core.SystemCore.DirectionUnits.Gradians;
+      else if (angleMeasurementUnit.FactoryCode == 9106)//Gons
+        dirUnitOut = ArcGIS.Core.SystemCore.DirectionUnits.Gons;
+
+      var AngConv = DirectionUnitFormatConversion.Instance;
+      var ConvDef = new ConversionDefinition()
+      {
+        DirectionTypeIn = dirTypeIn,
+        DirectionUnitsIn = dirUnitIn,
+        DirectionTypeOut = dirTypeOut,
+        DirectionUnitsOut = dirUnitOut
+      };
+      var ang = AngConv.ConvertToString(incomingDirectionDifference, iRounding, ConvDef);
+
+      if (ConvertDashesToDMSSymbols)
+      {
+        ang = PadMinutesSeconds(ang);
+        ang = FormatDirectionDashesToDegMinSecSymbols(ang);
+        if (dirUnitOut == ArcGIS.Core.SystemCore.DirectionUnits.Gons)
+          ang = ang.Replace("°", "g");
+      }
+      return signPrefix + ang;
+    }
+
+
+    internal static double ConvertPolarRadiansToNorthAzimuth(double InDirection)
+    {
+      var dirUnitIn = ArcGIS.Core.SystemCore.DirectionUnits.Radians;
+      var dirTypeIn = ArcGIS.Core.SystemCore.DirectionType.Polar;
+
+      var dirTypeOut = ArcGIS.Core.SystemCore.DirectionType.NorthAzimuth;
+      var dirUnitOut = ArcGIS.Core.SystemCore.DirectionUnits.DecimalDegrees;
+
+      var AngConv = DirectionUnitFormatConversion.Instance;
+      var ConvDef = new ConversionDefinition()
+      {
+        DirectionTypeIn = dirTypeIn,
+        DirectionUnitsIn = dirUnitIn,
+        DirectionTypeOut = dirTypeOut,
+        DirectionUnitsOut = dirUnitOut
+      };
+      return AngConv.ConvertToDouble(InDirection, ConvDef);
+    }
+
+    internal static string[] GetBackstageDirectionTypeAndUnit(DisplayUnitFormat incomingDirectionFormat, bool ReturnFullName = false)
+    {
+      if (incomingDirectionFormat == null)
+        return new string[2] { "","" };
+
+      var directionUnitFormat = incomingDirectionFormat.UnitFormat as CIMDirectionFormat;
+      string sDirectionType = "";
+      string sDirectionUnit = "R";//default to radians
+      if (ReturnFullName)
+      {
+        sDirectionType = directionUnitFormat.DirectionType.ToString();
+        sDirectionType = sDirectionType.Replace("tB", "t B").Replace("hA", "h A");
+
+        sDirectionUnit = incomingDirectionFormat.MeasurementUnit.Name;
+        sDirectionUnit = 
+          sDirectionUnit.Replace("Degree", "Degrees").Replace("Minute", "Minutes").Replace("Second", "Seconds");
+      }
+      else
+      {
+        if (directionUnitFormat.DirectionType == ArcGIS.Core.CIM.DirectionType.NorthAzimuth)
+          sDirectionType = "NA";
+        else if (directionUnitFormat.DirectionType == ArcGIS.Core.CIM.DirectionType.SouthAzimuth)
+          sDirectionType = "SA";
+        else if (directionUnitFormat.DirectionType == ArcGIS.Core.CIM.DirectionType.Polar)
+          sDirectionType = "P";
+        else if (directionUnitFormat.DirectionType == ArcGIS.Core.CIM.DirectionType.QuadrantBearing)
+          sDirectionType = "QB";
+
+        var angleMeasurementUnit = incomingDirectionFormat.MeasurementUnit;
+        if (angleMeasurementUnit.FactoryCode == 909004)//Degrees Minutes Seconds
+          sDirectionUnit = "DMS";
+        else if (angleMeasurementUnit.FactoryCode == 9102)//Decimal Degrees
+          sDirectionUnit = "DD";
+        else if (angleMeasurementUnit.FactoryCode == 9105)//Gradians
+          sDirectionUnit = "G";
+        else if (angleMeasurementUnit.FactoryCode == 9106)//Gons
+          sDirectionUnit = "G";
+      }
+
+      return new string[2] { sDirectionType, sDirectionUnit };
     }
 
     internal static List<Coordinate2D> CompassRuleAdjust(List<Coordinate3D> TraverseCourses, Coordinate2D StartPoint, Coordinate2D EndPoint,
       List<double> RadiusList, List<double> ArclengthList, List<bool> IsMajorList,
        out Coordinate2D MiscloseVector, out double MiscloseRatio, out double COGOArea)
     {
-      double dSUM;
       MiscloseRatio = 100000.0;
       COGOArea = 0.0;
-      MiscloseVector = GetClosingVector(TraverseCourses, StartPoint, EndPoint, out dSUM);
+      MiscloseVector = GetClosingVector(TraverseCourses, StartPoint, EndPoint, out double dSUM);
       if (MiscloseVector.Magnitude > 0.001)
         MiscloseRatio = dSUM / MiscloseVector.Magnitude;
 
@@ -102,7 +268,7 @@ namespace ParcelsAddin
       Coordinate2D[] TraversePoints = new Coordinate2D[TraverseCourses.Count]; //from control
       for (int i = 0; i < TraverseCourses.Count; i++)
       {
-        Coordinate2D toPoint = new Coordinate2D();
+        Coordinate2D toPoint = new();
         Coordinate3D vec = TraverseCourses[i];
         dRunningSum += vec.Magnitude;
 
@@ -142,7 +308,7 @@ namespace ParcelsAddin
         toPoint.SetComponents(StartPoint.X + vec.X, StartPoint.Y + vec.Y);
         StartPoint.SetComponents(toPoint.X, toPoint.Y); //re-set the start point to the one just added
 
-        Coordinate2D pAdjustedPoint = new Coordinate2D(toPoint.X - dXCorrection, toPoint.Y - dYCorrection);
+        Coordinate2D pAdjustedPoint = new (toPoint.X - dXCorrection, toPoint.Y - dYCorrection);
         TraversePoints[i] = pAdjustedPoint;
       }
 
@@ -217,6 +383,31 @@ namespace ParcelsAddin
       return Bearing;
     }
 
+    internal static string PadMinutesSeconds(string Angle)
+    {
+      string InitialAngleString = Angle;
+      try
+      {
+        Angle = Angle.Replace(" ", "");
+
+        int i = Angle.LastIndexOf('-');
+        int j = Angle.IndexOf('-');
+
+        if (i - j == 2)
+          Angle = Angle.Insert(j + 1, "0");
+
+        i = Angle.LastIndexOf('-');//get it again
+        if (Angle.Length -2 == i)
+          Angle = Angle.Insert(i + 1, "0");
+
+      }
+      catch
+      {
+        return InitialAngleString;
+      }
+      return Angle;
+    }
+
   }
   internal class ParcelUtils
   {
@@ -228,6 +419,14 @@ namespace ParcelsAddin
     internal static double ClockwiseUpStreamEdgePosition(ParcelLineInfo line)
     {
       return line.IsReversed ? line.StartPositionOnParcelEdge : line.EndPositionOnParcelEdge;
+    }
+    internal static bool HasValidLicenseForParcelLayer()
+    {
+      var lic = ArcGIS.Core.Licensing.LicenseInformation.Level;
+      if (lic < ArcGIS.Core.Licensing.LicenseLevels.Standard)
+        return false;
+      else
+        return true;
     }
 
     internal static bool ParcelEdgeAnalysis(ParcelEdgeCollection parcelEdgeCollection, out bool isClosedLoop,
@@ -300,10 +499,12 @@ namespace ParcelsAddin
                 Coordinate3D vect = new();
                 vect.SetPolarComponents(radiansDirection, 0.0, chordDistance);
                 if (ClockwiseDownStreamEdgePosition(myLineInfo) == highestPosition)
-                //this line's start matches last line's end
+                  //this line's start matches last line's end
                   vectorChord.Add(vect);
                 else
-                  vectorChord.Add(null);
+                  //add zero length vector to keep index placeholder
+                  //avoids side-case of exactly overlapping lines
+                  vectorChord.Add(new Coordinate3D(0.0, 0.0, 0.0));
 
                 arcLengthList.Add(dArclength);
                 if (Math.Abs(dArclength / dRadius) > Math.PI)
@@ -341,10 +542,12 @@ namespace ParcelsAddin
               Coordinate3D vect = new();
               vect.SetPolarComponents(radiansDirection, 0.0, (double)distance);
               if (ClockwiseDownStreamEdgePosition(myLineInfo) == highestPosition)
-              //this line's start matches previous line's end
+                //this line's start matches previous line's end
                 vectorChord.Add(vect);
               else
-                vectorChord.Add(null);
+                //add zero length vector to keep index placeholder
+                //avoids side-case of exactly overlapping lines
+                vectorChord.Add(new Coordinate3D(0.0, 0.0, 0.0));
               
               arcLengthList.Add(null);
               radiusList.Add(null);
@@ -513,5 +716,71 @@ namespace ParcelsAddin
       return null;
     }
 
+    internal static void GetParcelPolygonFeatureLayersSelection(ParcelLayer myParcelFabricLayer, 
+      out Dictionary<FeatureLayer, List<long>> ParcelPolygonSelections)
+    {
+      List<FeatureLayer> featureLayer = new();
+      ParcelPolygonSelections = new();
+      var parcelTypes = myParcelFabricLayer.GetParcelTypeNamesAsync().Result;
+
+      foreach (var parcelType in parcelTypes)
+      {
+        var fLyrList = myParcelFabricLayer.GetParcelPolygonLayerByTypeNameAsync(parcelType).Result;
+        if (fLyrList == null) continue;
+        foreach (var fLyr in fLyrList)
+        {
+          if (fLyr.SelectionCount > 0)
+            featureLayer.Add(fLyr);
+        }
+      }
+
+      foreach (var lyr in featureLayer)
+      {
+        var fc = lyr.GetFeatureClass();
+        List<long> lstOids = new();
+        using (RowCursor rowCursor = lyr.GetSelection().Search())
+        {
+          while (rowCursor.MoveNext())
+          {
+            using (Row rowFeat = rowCursor.Current)
+            {
+              if (!ParcelPolygonSelections.ContainsKey(lyr))
+                ParcelPolygonSelections.Add(lyr, lstOids);
+              lstOids.Add(rowFeat.GetObjectID());
+            }
+          }
+        }
+        if (lstOids.Count > 0)
+          ParcelPolygonSelections[lyr] = lstOids;
+      }
+    }
+
+    internal static bool GetTargetFolder(string ConfigurationSettingsName, out string folderPath)
+    {
+      folderPath =  ConfigurationsLastUsed.Default[ConfigurationSettingsName] as string;
+      BrowseProjectFilter bf = new (ItemFilters.Folders);
+      //Display the filter in an Open Item dialog
+      OpenItemDialog aBrowseForFolder = new()
+      {
+        Title = "Select A Target Folder",
+        InitialLocation = folderPath,
+        MultiSelect = false,
+        BrowseFilter = bf
+      };
+      bool? ok = aBrowseForFolder.ShowDialog();
+      if (ok == true)
+      {
+        var myItems = aBrowseForFolder.Items;
+        folderPath = myItems.First().Path;
+
+        //sTextFileFabricPointIDToGuid = Path.Combine(folderPath, Module1.PointIDMapTextFile);
+        ConfigurationsLastUsed.Default[ConfigurationSettingsName] = folderPath;
+        ConfigurationsLastUsed.Default.Save();
+
+        return true;
+      }
+      else
+        return false;
+    }
   }
 }

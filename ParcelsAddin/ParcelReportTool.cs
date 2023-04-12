@@ -51,9 +51,9 @@ namespace ParcelsAddin
 
     private ParcelLayer _parcelFabricLayer;
     private List<FeatureLayer> _featureLayer;
-    private readonly Dictionary<FeatureLayer, List<long>> dictLyr2IdsList = new Dictionary<FeatureLayer, List<long>>();
+    private readonly Dictionary<FeatureLayer, List<long>> dictLyr2IdsList = new ();
 
-    private ParcelReportViewModel _VM = new ParcelReportViewModel();
+    private readonly ParcelReportViewModel _VM = new ();
 
     protected override Task OnToolActivateAsync(bool active)
     {
@@ -102,8 +102,6 @@ namespace ParcelsAddin
     protected override Task<bool> OnSketchCompleteAsync(Geometry geometry)
     {
       dictLyr2IdsList.Clear();
-      var cgUtils = new COGOUtils();
-      var parcUtils = new ParcelUtils();
       string sReportResult = "";
       var ParcelReportDlg = new ParcelReportDialog
       {
@@ -183,9 +181,7 @@ namespace ParcelsAddin
             if (parcelEdgeCollection == null)
               continue;
 
-            bool isClosedloop = false;
-            bool allLinesHaveCogo = false;
-            if (!ParcelUtils.ParcelEdgeAnalysis(parcelEdgeCollection, out isClosedloop, out allLinesHaveCogo,
+            if (!ParcelUtils.ParcelEdgeAnalysis(parcelEdgeCollection, out bool isClosedloop, out bool allLinesHaveCogo,
               out object[] parcelTraverseInfo))
               sReportResult += "No traverse information available.";
 
@@ -341,5 +337,20 @@ namespace ParcelsAddin
       ParcelReportDlg.ShowDialog();
       return Task.FromResult(true);
     }
+
+    protected override void OnUpdate()
+    {
+      QueuedTask.Run(() =>
+      {
+        //confirm we have a license...
+        if (!ParcelUtils.HasValidLicenseForParcelLayer())
+        {
+          this.Enabled = false;
+          this.DisabledTooltip = "Insufficient license level.";
+          return;
+        }
+      });
+    }
+
   }
 }

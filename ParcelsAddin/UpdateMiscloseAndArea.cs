@@ -37,13 +37,18 @@ namespace ParcelsAddin
 {
   internal class UpdateMiscloseAndArea : Button
   {
-    private List<FeatureLayer> _featureLayer;
-    private readonly ParcelUtils _parcelUtils = new();
-
     protected override void OnUpdate()
     {
       QueuedTask.Run(() =>
       {
+        //confirm we have a license...
+        if (!ParcelUtils.HasValidLicenseForParcelLayer())
+        {
+          this.Enabled = false;
+          this.DisabledTooltip = "Insufficient license level.";
+          return;
+        }
+
         var myParcelFabricLayer =
         MapView.Active?.Map?.GetLayersAsFlattenedList().OfType<ParcelLayer>().FirstOrDefault();
 
@@ -70,21 +75,13 @@ namespace ParcelsAddin
 
     protected override async void OnClick()
     {
-      //first confirm we have a license...
-      var lic = ArcGIS.Core.Licensing.LicenseInformation.Level;
-      if (lic < ArcGIS.Core.Licensing.LicenseLevels.Standard)
-      {
-        MessageBox.Show("Insufficient License Level.");
-        return;
-      }
-
       double _largeParcelToleranceInSqMeters = 1011.715; //default to quarter acre in units of meters = 1011.715 sq.m
       long _largeParcelUnitCode = 109402; //acres as default
       double _sqMetersPerAreaUnit = 4046.86;//for acres as default
       
       try
       {
-        string sParamString = ConfigureAreaUnitsDlg.Default["LastUsedParams"] as string;
+        string sParamString = ConfigurationsLastUsed.Default["ConfigureAreaUnitsLastUsedParams"] as string;
         string[] sParams = sParamString.Split('|'); //"Acres|0.25|area unit code|1011.715"
 
         _ = long.TryParse(sParams[2], out _largeParcelUnitCode);
@@ -93,9 +90,7 @@ namespace ParcelsAddin
       }
       catch
       {; }
-      var cgUtils = new COGOUtils();
-
-      Dictionary<FeatureLayer, List<long>> dictLyr2IdsList = new Dictionary<FeatureLayer, List<long>>();
+      CancelableProgressorSource cps = new("Update misclose and area", "Canceled");
       string errorMessage = await QueuedTask.Run(async () =>
       {
         var myParcelFabricLayer =
@@ -120,7 +115,8 @@ namespace ParcelsAddin
         else
           _isPCS = false;
 
-        _featureLayer = new List<FeatureLayer>();
+        #region Get Parcel Polygon Feature Layers Selection
+        /*_featureLayer = new List<FeatureLayer>();
         var parcelTypes = myParcelFabricLayer.GetParcelTypeNamesAsync().Result;
 
         foreach (var parcelType in parcelTypes)
@@ -154,16 +150,23 @@ namespace ParcelsAddin
           if (lstOids.Count > 0)
             dictLyr2IdsList[lyr] = lstOids;
         }
+        */
+        #endregion
+
+        ParcelUtils.GetParcelPolygonFeatureLayersSelection(myParcelFabricLayer,
+          out Dictionary<FeatureLayer, List<long>> parcelPolygonLayerIds);
 
         var editOper = new EditOperation()
         {
           Name = "Update Misclose and Area",
           ShowModalMessageAfterFailure = true,
+          ShowProgressor=true,
           SelectModifiedFeatures = false
         };
 
-        foreach (var featlyr in dictLyr2IdsList)
+        foreach (var featlyr in parcelPolygonLayerIds)
         {
+          cps.Progressor.Message = "Updating " + featlyr.Key.ToString();
           foreach (var oid in featlyr.Value)
           {
             ParcelEdgeCollection parcelEdgeCollection = null;
@@ -278,7 +281,8 @@ namespace ParcelsAddin
                 }
               }
               if (highestPosition != 1)
-              //means we were not able to traverse all the way to the end of this edge without a loss of COGO connection
+              //means we were not able to traverse all the way to the end of this edge
+              //without a loss of COGO connection
               {
                 canTraverseCOGO = false;
                 break;
@@ -286,9 +290,10 @@ namespace ParcelsAddin
             }
             if (canTraverseCOGO)
             {
+              cps.Progressor.Value += 1;
               var result = COGOUtils.CompassRuleAdjust(traverseCourses, startPoint, startPoint, radiusList, arcLengthList, isMajorList,
                 out Coordinate2D miscloseVector, out double dRatio, out double calcArea);
-              Dictionary<string, object> ParcelAttributes = new Dictionary<string, object>();
+              Dictionary<string, object> ParcelAttributes = new();
 
               ParcelAttributes.Add("MiscloseDistance", miscloseVector.Magnitude);
               ParcelAttributes.Add("MiscloseRatio", dRatio);
@@ -314,12 +319,18 @@ namespace ParcelsAddin
               editOper.Modify(featlyr.Key, oid, ParcelAttributes);
               ParcelAttributes.Clear();
             }
+
+            if (cps.Progressor.CancellationToken.IsCancellationRequested)
+              break;
           }
+          if (cps.Progressor.CancellationToken.IsCancellationRequested)
+            break;
+          cps.Progressor.Status = "Parcels with a valid loop traverse: " + cps.Progressor.Value;
         }
         if (!editOper.IsEmpty)
           editOper.Execute();
         return "";
-      });
+      }, cps.Progressor);
     }
   }
 }
