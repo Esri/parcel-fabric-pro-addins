@@ -115,44 +115,6 @@ namespace ParcelsAddin
         else
           _isPCS = false;
 
-        #region Get Parcel Polygon Feature Layers Selection
-        /*_featureLayer = new List<FeatureLayer>();
-        var parcelTypes = myParcelFabricLayer.GetParcelTypeNamesAsync().Result;
-
-        foreach (var parcelType in parcelTypes)
-        {
-          var fLyrList = myParcelFabricLayer.GetParcelPolygonLayerByTypeNameAsync(parcelType).Result;
-          if (fLyrList == null) continue;
-          foreach (var fLyr in fLyrList)
-          {
-            if (fLyr.SelectionCount > 0)
-              _featureLayer.Add(fLyr);
-          }
-        }
-
-        dictLyr2IdsList.Clear();
-        foreach (var lyr in _featureLayer)
-        {
-          var fc = lyr.GetFeatureClass();
-          List<long> lstOids = new();
-          using (RowCursor rowCursor = lyr.GetSelection().Search())
-          {
-            while (rowCursor.MoveNext())
-            {
-              using (Row rowFeat = rowCursor.Current)
-              {
-                if (!dictLyr2IdsList.ContainsKey(lyr))
-                  dictLyr2IdsList.Add(lyr, lstOids);
-                lstOids.Add(rowFeat.GetObjectID());
-              }
-            }
-          }
-          if (lstOids.Count > 0)
-            dictLyr2IdsList[lyr] = lstOids;
-        }
-        */
-        #endregion
-
         ParcelUtils.GetParcelPolygonFeatureLayersSelection(myParcelFabricLayer,
           out Dictionary<FeatureLayer, List<long>> parcelPolygonLayerIds);
 
@@ -172,7 +134,7 @@ namespace ParcelsAddin
             ParcelEdgeCollection parcelEdgeCollection = null;
             var tol = 0.03 / _metersPerUnit; //3 cms
             if (!_isPCS)
-              tol = Math.Atan(tol / (6378100 / _metersPerUnit));
+              tol = Math.Atan(tol / (6378100.0 / _metersPerUnit));
             try
             {
               parcelEdgeCollection = await myParcelFabricLayer.GetSequencedParcelEdgeInfoAsync(featlyr.Key,
@@ -204,13 +166,13 @@ namespace ParcelsAddin
               var highestPosition = 0.0;
               foreach (var myLineInfo in edge.Lines)
               {
-                //test for COGO attributes and line type
-                bool hasCOGODirection = myLineInfo.FeatureAttributes.TryGetValue("Direction", out object direction);
-                bool hasCOGODistance = myLineInfo.FeatureAttributes.TryGetValue("Distance", out object distance);
-                bool hasCOGORadius = myLineInfo.FeatureAttributes.TryGetValue("Radius", out object radius);
-                bool hasCOGOArclength = myLineInfo.FeatureAttributes.TryGetValue("ArcLength", out object arclength);
+                var featAtts = myLineInfo.FeatureAttributes;
+                bool hasCOGODirection = ParcelUtils.TryGetObjectFromFieldUpperLowerCase(featAtts, "Direction", out object direction);
+                bool hasCOGODistance = ParcelUtils.TryGetObjectFromFieldUpperLowerCase(featAtts, "Distance", out object distance);
+                bool hasCOGORadius = ParcelUtils.TryGetObjectFromFieldUpperLowerCase(featAtts, "Radius", out object radius);
+                bool hasCOGOArclength = ParcelUtils.TryGetObjectFromFieldUpperLowerCase(featAtts, "ArcLength", out object arclength);
                 bool bIsCOGOLine = hasCOGODirection && hasCOGODistance;
-
+ 
                 //logic to exclude unwanted lines on this edge
                 if (!myLineInfo.HasNextLineConnectivity)
                   continue;
@@ -223,7 +185,7 @@ namespace ParcelsAddin
                 if (myLineInfo.StartPositionOnParcelEdge < 0)
                   continue;
                 //also exclude historic lines
-                bool hasRetiredByGuid = myLineInfo.FeatureAttributes.TryGetValue("RetiredByRecord", out object guid);
+                bool hasRetiredByGuid = ParcelUtils.TryGetObjectFromFieldUpperLowerCase(featAtts, "RetiredByRecord", out object guid);
                 if (hasRetiredByGuid && guid != DBNull.Value)
                   continue;
 

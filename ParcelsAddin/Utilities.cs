@@ -455,10 +455,11 @@ namespace ParcelsAddin
           foreach (var myLineInfo in edge.Lines)
           {
             //test for COGO attributes and line type
-            bool hasCOGODirection = myLineInfo.FeatureAttributes.TryGetValue("Direction", out object direction);
-            bool hasCOGODistance = myLineInfo.FeatureAttributes.TryGetValue("Distance", out object distance);
-            bool hasCOGORadius = myLineInfo.FeatureAttributes.TryGetValue("Radius", out object radius);
-            bool hasCOGOArclength = myLineInfo.FeatureAttributes.TryGetValue("ArcLength", out object arclength);
+            var featAtts = myLineInfo.FeatureAttributes;
+            bool hasCOGODirection = TryGetObjectFromFieldUpperLowerCase(featAtts, "Direction", out object direction);
+            bool hasCOGODistance = TryGetObjectFromFieldUpperLowerCase(featAtts, "Distance", out object distance);
+            bool hasCOGORadius = TryGetObjectFromFieldUpperLowerCase(featAtts, "Radius", out object radius);
+            bool hasCOGOArclength = TryGetObjectFromFieldUpperLowerCase(featAtts, "ArcLength", out object arclength);
             bool bIsCOGOLine = hasCOGODirection && hasCOGODistance;
 
             //logic to exclude unwanted lines on this edge
@@ -473,7 +474,7 @@ namespace ParcelsAddin
             if (myLineInfo.StartPositionOnParcelEdge < 0.0)
               continue;
             //also exclude historic lines
-            bool hasRetiredByGuid = myLineInfo.FeatureAttributes.TryGetValue("RetiredByRecord", out object guid);
+            bool hasRetiredByGuid = TryGetObjectFromFieldUpperLowerCase(featAtts, "RetiredByRecord", out object guid);
             if (hasRetiredByGuid && guid != DBNull.Value)
               continue;
 
@@ -579,6 +580,31 @@ namespace ParcelsAddin
       }
     }
 
+    internal static bool TryGetObjectFromFieldUpperLowerCase(IReadOnlyDictionary<string,object> ReadOnlyDict, 
+      string searchString, out object obj)
+    {
+      string ucaseSearch = searchString.ToUpper().Trim();
+      string lcaseSearch = searchString.ToLower().Trim();
+      string firstUcaseSearch = searchString.Trim()[..1].ToUpper() + searchString.Trim()[1..].ToLower();
+      bool found = ReadOnlyDict.TryGetValue(searchString, out obj);
+      if (!found)
+        found = ReadOnlyDict.TryGetValue(ucaseSearch, out obj);
+      else
+        return true;
+
+      if (!found)
+        found = ReadOnlyDict.TryGetValue(lcaseSearch, out obj);
+      else
+        return true;
+
+      if (!found)
+        found = ReadOnlyDict.TryGetValue(firstUcaseSearch, out obj);
+      else
+        return true;
+
+      return found;
+    }
+   
     internal static bool IsDefaultVersionOnFeatureService(FeatureLayer featureLayer)
     {
       using (Table table = featureLayer.GetTable())
