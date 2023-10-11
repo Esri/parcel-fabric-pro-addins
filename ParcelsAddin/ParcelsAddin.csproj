@@ -10,6 +10,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Remove="View\ParcelReport.xaml.cs" />
+    <Compile Remove="View\ShowConfigureUpdateCOGODialog.cs" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="Config.daml" />
@@ -23,6 +24,7 @@
     <Content Include="DarkImages\Redo32.png" />
     <Content Include="DarkImages\Undo16.png" />
     <Content Include="DarkImages\Undo32.png" />
+    <Content Include="DarkImages\UpdateCOGOAttributes32.png" />
     <Content Include="DarkImages\UpdateMiscloseArea16.png" />
     <Content Include="DarkImages\UpdateMiscloseArea32.png" />
     <Content Include="Images\FabricAddInDesktop16.png" />
@@ -35,6 +37,7 @@
     <Content Include="Images\Redo32.png" />
     <Content Include="Images\Undo16.png" />
     <Content Include="Images\Undo32.png" />
+    <Content Include="Images\UpdateCOGOAttributes32.png" />
     <Content Include="Images\UpdateMiscloseArea16.png" />
     <Content Include="Images\UpdateMiscloseArea32.png" />
   </ItemGroup>
@@ -49,6 +52,7 @@
     <None Remove="DarkImages\Redo32.png" />
     <None Remove="DarkImages\Undo16.png" />
     <None Remove="DarkImages\Undo32.png" />
+    <None Remove="DarkImages\UpdateCOGOAttributes32.png" />
     <None Remove="DarkImages\UpdateMiscloseArea16.png" />
     <None Remove="DarkImages\UpdateMiscloseArea32.png" />
     <None Remove="Images\FabricAddInDesktop16.png" />
@@ -61,6 +65,7 @@
     <None Remove="Images\Redo32.png" />
     <None Remove="Images\Undo16.png" />
     <None Remove="Images\Undo32.png" />
+    <None Remove="Images\UpdateCOGOAttributes32.png" />
     <None Remove="Images\UpdateMiscloseArea16.png" />
     <None Remove="Images\UpdateMiscloseArea32.png" />
   </ItemGroup>

@@ -58,5 +58,17 @@ namespace ParcelsAddin {
                 this["ExportParcelReportFileLastUsedParams"] = value;
             }
         }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string ConfigureUpdateCOGOLastUsedParams {
+            get {
+                return ((string)(this["ConfigureUpdateCOGOLastUsedParams"]));
+            }
+            set {
+                this["ConfigureUpdateCOGOLastUsedParams"] = value;
+            }
+        }
     }
 }

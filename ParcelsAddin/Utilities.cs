@@ -39,7 +39,7 @@ namespace ParcelsAddin
 {
   internal class COGOUtils
   {
-    internal static string ConvertNorthAzimuthDecimalDegreesToDisplayUnit(double InDirection, 
+    internal static string ConvertNorthAzimuthDecimalDegreesToDisplayUnit(double InDirection,
       DisplayUnitFormat incomingDirectionFormat, bool ConvertDashesToDMSSymbols = true)
     {
       if (incomingDirectionFormat == null)
@@ -141,14 +141,14 @@ namespace ParcelsAddin
       return dir;
     }
 
-    internal static string ConvertDirectionDifferenceInDecimalDegreesToDisplayUnitAngle(double incomingDirectionDifference, 
+    internal static string ConvertDirectionDifferenceInDecimalDegreesToDisplayUnitAngle(double incomingDirectionDifference,
       DisplayUnitFormat incomingDirectionFormat, bool ConvertDashesToDMSSymbols = true)
     {
       if (incomingDirectionFormat == null)
-        return  "";
+        return "";
 
       var signPrefix = incomingDirectionDifference >= 0 ? "+" : "-";
-      incomingDirectionDifference=Math.Abs(incomingDirectionDifference);
+      incomingDirectionDifference = Math.Abs(incomingDirectionDifference);
 
       var directionUnitFormat = incomingDirectionFormat.UnitFormat as CIMDirectionFormat;
       int iRounding = directionUnitFormat.DecimalPlaces;
@@ -188,6 +188,43 @@ namespace ParcelsAddin
       return signPrefix + ang;
     }
 
+    internal static void GetCOGOLineFeatureLayersSelection(MapView myActiveMapView,
+      out Dictionary<FeatureLayer, List<long>> COGOLineSelections)
+    {
+      List<FeatureLayer> featureLayer = new();
+      COGOLineSelections = new();
+
+      var fLyrList = myActiveMapView.Map.GetLayersAsFlattenedList().OfType<FeatureLayer>().
+        Where(l => l.GetFeatureClass().GetDefinition().IsCOGOEnabled());
+
+      if (fLyrList == null) return;
+
+      foreach (var fLyr in fLyrList)
+      {
+        if (fLyr.SelectionCount > 0)
+          featureLayer.Add(fLyr);
+      }
+
+      foreach (var lyr in featureLayer)
+      {
+        var fc = lyr.GetFeatureClass();
+        List<long> lstOids = new();
+        using (RowCursor rowCursor = lyr.GetSelection().Search())
+        {
+          while (rowCursor.MoveNext())
+          {
+            using (Row rowFeat = rowCursor.Current)
+            {
+              if (!COGOLineSelections.ContainsKey(lyr))
+                COGOLineSelections.Add(lyr, lstOids);
+              lstOids.Add(rowFeat.GetObjectID());
+            }
+          }
+        }
+        if (lstOids.Count > 0)
+          COGOLineSelections[lyr] = lstOids;
+      }
+    }
 
     internal static double ConvertPolarRadiansToNorthAzimuth(double InDirection)
     {
@@ -211,7 +248,7 @@ namespace ParcelsAddin
     internal static string[] GetBackstageDirectionTypeAndUnit(DisplayUnitFormat incomingDirectionFormat, bool ReturnFullName = false)
     {
       if (incomingDirectionFormat == null)
-        return new string[2] { "","" };
+        return new string[2] { "", "" };
 
       var directionUnitFormat = incomingDirectionFormat.UnitFormat as CIMDirectionFormat;
       string sDirectionType = "";
@@ -222,7 +259,7 @@ namespace ParcelsAddin
         sDirectionType = sDirectionType.Replace("tB", "t B").Replace("hA", "h A");
 
         sDirectionUnit = incomingDirectionFormat.MeasurementUnit.Name;
-        sDirectionUnit = 
+        sDirectionUnit =
           sDirectionUnit.Replace("Degree", "Degrees").Replace("Minute", "Minutes").Replace("Second", "Seconds");
       }
       else
@@ -308,7 +345,7 @@ namespace ParcelsAddin
         toPoint.SetComponents(StartPoint.X + vec.X, StartPoint.Y + vec.Y);
         StartPoint.SetComponents(toPoint.X, toPoint.Y); //re-set the start point to the one just added
 
-        Coordinate2D pAdjustedPoint = new (toPoint.X - dXCorrection, toPoint.Y - dYCorrection);
+        Coordinate2D pAdjustedPoint = new(toPoint.X - dXCorrection, toPoint.Y - dYCorrection);
         TraversePoints[i] = pAdjustedPoint;
       }
 
@@ -397,7 +434,7 @@ namespace ParcelsAddin
           Angle = Angle.Insert(j + 1, "0");
 
         i = Angle.LastIndexOf('-');//get it again
-        if (Angle.Length -2 == i)
+        if (Angle.Length - 2 == i)
           Angle = Angle.Insert(i + 1, "0");
 
       }
@@ -408,7 +445,146 @@ namespace ParcelsAddin
       return Angle;
     }
 
+    internal static bool GetCOGOFromGeometry(Polyline myLineFeature, SpatialReference MapSR, double ScaleFactor,
+        double DirectionOffset, out object[] COGODirectionDistanceRadiusArcLength)
+    {
+      COGODirectionDistanceRadiusArcLength =
+                          new object[4] { DBNull.Value, DBNull.Value, DBNull.Value, DBNull.Value };
+      try
+      {
+        COGODirectionDistanceRadiusArcLength[0] = DBNull.Value;
+        COGODirectionDistanceRadiusArcLength[1] = DBNull.Value;
+
+        var GeomSR = myLineFeature.SpatialReference;
+        if (GeomSR.IsGeographic && MapSR.IsGeographic)
+          return false; //Future work: use API for Geodesics.
+        double MapSRMetersPerUnit = 1;
+        double DatasetSRMetersPerUnit = 1;
+
+        if (GeomSR.IsProjected)
+          DatasetSRMetersPerUnit = GeomSR.Unit.ConversionFactor;
+
+        if (MapSR.IsProjected)
+        { //project the data geometry to map spatial reference
+            MapSRMetersPerUnit = MapSR.Unit.ConversionFactor; // Meters per unit.
+            myLineFeature = GeometryEngine.Instance.Project(myLineFeature, MapSR) as Polyline;
+        }
+
+        EllipticArcSegment pCircArc;
+        ICollection<Segment> LineSegments = new List<Segment>();
+        myLineFeature.GetAllSegments(ref LineSegments);
+        int numSegments = LineSegments.Count;
+
+        IList<Segment> iList = LineSegments as IList<Segment>;
+        Segment FirstSeg = iList[0];
+        Segment LastSeg = iList[numSegments - 1];
+
+        var pLine = LineBuilderEx.CreateLineSegment(FirstSeg.StartCoordinate, LastSeg.EndCoordinate);
+
+        if (pLine.Length * MapSRMetersPerUnit > 0.0014)
+        {
+          COGODirectionDistanceRadiusArcLength[0] =
+              PolarRadiansToNorthAzimuthDecimalDegrees(pLine.Angle - DirectionOffset * Math.PI / 180);
+
+          COGODirectionDistanceRadiusArcLength[1] = pLine.Length * MapSRMetersPerUnit /
+                  DatasetSRMetersPerUnit / ScaleFactor;
+        }
+        else
+        {
+          COGODirectionDistanceRadiusArcLength[0] = DBNull.Value;
+          COGODirectionDistanceRadiusArcLength[1] = DBNull.Value;
+        }
+        //check if the last segment is a circular arc
+        var pCircArcLast = LastSeg as EllipticArcSegment;
+        if (pCircArcLast == null)
+          return true; //we already know there is no circular arc COGO
+
+        //check if this feature includes elliptical arcs that are not circular arcs
+
+        //Keep a copy of the center point
+        var LastCenterPoint = pCircArcLast.CenterPoint;
+        COGODirectionDistanceRadiusArcLength[2] = pCircArcLast.IsCounterClockwise ?
+                -pCircArcLast.SemiMajorAxis : Math.Abs(pCircArcLast.SemiMajorAxis); //radius
+        double dArcLengthSUM = 0;
+        //use 30 times xy tolerance for circular arc segment tangency test
+        //around 3cms if using default XY Tolerance - recommended
+        double dTangencyToleranceTest = MapSR.XYTolerance * 30;
+        for (int i = 0; i < numSegments; i++)
+        {
+          pCircArc = iList[i] as EllipticArcSegment;
+          if (pCircArc == null)
+          {
+            COGODirectionDistanceRadiusArcLength[2] = DBNull.Value; //radius
+            COGODirectionDistanceRadiusArcLength[3] = DBNull.Value; //arc length
+            return true;
+          }
+          var tolerance = LineBuilderEx.CreateLineSegment(LastCenterPoint, pCircArc.CenterPoint).Length;
+          if (tolerance > dTangencyToleranceTest || !pCircArc.IsCircular)
+          {
+            COGODirectionDistanceRadiusArcLength[2] = DBNull.Value; //radius
+            COGODirectionDistanceRadiusArcLength[3] = DBNull.Value; //arc length
+            return true;
+          }
+          dArcLengthSUM += pCircArc.Length; //arc length sum
+        }
+        //now check to see if the radius and arclength survived and if so, clear the distance
+        if (COGODirectionDistanceRadiusArcLength[2] != DBNull.Value)
+          COGODirectionDistanceRadiusArcLength[1] = DBNull.Value;
+
+        COGODirectionDistanceRadiusArcLength[3] = dArcLengthSUM * 
+              MapSRMetersPerUnit / DatasetSRMetersPerUnit / ScaleFactor;
+        COGODirectionDistanceRadiusArcLength[2] = (double)COGODirectionDistanceRadiusArcLength[2] * 
+              MapSRMetersPerUnit / DatasetSRMetersPerUnit / ScaleFactor;
+
+        return true;
+      }
+      catch
+      {
+        return false;
+      }
+    }
+
+    internal static double AngleDifferenceBetweenDirections(double DirectionInNorthAzimuthDegrees1,
+      double DirectionInNorthAzimuthDegrees2)
+    {
+      var t = Math.Abs(DirectionInNorthAzimuthDegrees1 - DirectionInNorthAzimuthDegrees2) % 360.0; //fMOD in C++
+      var delta = 180.0 - Math.Abs(t - 180.0);
+      return delta;
+    }
+
+    internal static double InverseDirectionAsNorthAzimuth(Coordinate2D FromCoordinate, Coordinate2D ToCoordinate, bool Reversed)
+    {
+      var DirectionInPolarRadians = LineBuilderEx.CreateLineSegment(FromCoordinate, ToCoordinate).Angle;
+      if (Reversed)
+        DirectionInPolarRadians += Math.PI;
+      return PolarRadiansToNorthAzimuthDecimalDegrees(DirectionInPolarRadians);
+    }
+    internal static double InverseDistance(Coordinate2D FromCoordinate, Coordinate2D ToCoordinate)
+    {
+      return LineBuilderEx.CreateLineSegment(FromCoordinate, ToCoordinate).Length;
+    }
+    internal static double StraightLineStartPointToEndPointDistance(Polyline myPolyline)
+    {
+      Coordinate2D crd1 = (myPolyline as Polyline).Points[0].Coordinate2D;
+      int pntCnt = (myPolyline as Polyline).PointCount;
+      Coordinate2D crd2 = (myPolyline as Polyline).Points[pntCnt - 1].Coordinate2D;
+      return LineBuilderEx.CreateLineSegment(crd1, crd2).Length;
+    }
+    private static double PolarRadiansToNorthAzimuthDecimalDegrees(double InPolarRadians)
+    {
+      var AngConv = DirectionUnitFormatConversion.Instance;
+      var ConvDef = new ConversionDefinition()
+      {
+        DirectionTypeIn = ArcGIS.Core.SystemCore.DirectionType.Polar,
+        DirectionUnitsIn = ArcGIS.Core.SystemCore.DirectionUnits.Radians,
+        DirectionTypeOut = ArcGIS.Core.SystemCore.DirectionType.NorthAzimuth,
+        DirectionUnitsOut = ArcGIS.Core.SystemCore.DirectionUnits.DecimalDegrees
+      };
+      return AngConv.ConvertToDouble(InPolarRadians, ConvDef);
+    }
   }
+
+
   internal class ParcelUtils
   {
     internal static double ClockwiseDownStreamEdgePosition(ParcelLineInfo line)
@@ -509,7 +685,7 @@ namespace ParcelsAddin
 
                 arcLengthList.Add(dArclength);
                 if (Math.Abs(dArclength / dRadius) > Math.PI)
-                    isMajorList.Add(true);
+                  isMajorList.Add(true);
                 else
                   isMajorList.Add(false);
                 if (myLineInfo.IsReversed)
@@ -532,7 +708,7 @@ namespace ParcelsAddin
                   arcLengthList.Add((double)arclength);
                 else
                   arcLengthList.Add(null);
-                
+
                 isMajorList.Add(false);
               }
             }
@@ -549,7 +725,7 @@ namespace ParcelsAddin
                 //add zero length vector to keep index placeholder
                 //avoids side-case of exactly overlapping lines
                 vectorChord.Add(new Coordinate3D(0.0, 0.0, 0.0));
-              
+
               arcLengthList.Add(null);
               radiusList.Add(null);
               isMajorList.Add(false);
@@ -580,7 +756,7 @@ namespace ParcelsAddin
       }
     }
 
-    internal static bool TryGetObjectFromFieldUpperLowerCase(IReadOnlyDictionary<string,object> ReadOnlyDict, 
+    internal static bool TryGetObjectFromFieldUpperLowerCase(IReadOnlyDictionary<string, object> ReadOnlyDict,
       string searchString, out object obj)
     {
       string ucaseSearch = searchString.ToUpper().Trim();
@@ -604,7 +780,7 @@ namespace ParcelsAddin
 
       return found;
     }
-   
+
     internal static bool IsDefaultVersionOnFeatureService(FeatureLayer featureLayer)
     {
       using (Table table = featureLayer.GetTable())
@@ -614,16 +790,16 @@ namespace ParcelsAddin
         if (geodatabase.IsVersioningSupported())
         {
           using (VersionManager versionManager = geodatabase.GetVersionManager())
-          try
-          {
-            var currentVersion = versionManager.GetCurrentVersion();
-            if (currentVersion.GetParent() == null) //default version
-              return true;// "Editing on the default version is not available.";
-          }
-          catch
-          {
-            return true;
-          }
+            try
+            {
+              var currentVersion = versionManager.GetCurrentVersion();
+              if (currentVersion.GetParent() == null) //default version
+                return true;// "Editing on the default version is not available.";
+            }
+            catch
+            {
+              return true;
+            }
         }
       }
       return false;
@@ -649,7 +825,7 @@ namespace ParcelsAddin
       return enableSate;
     }
 
-    internal static List<long> FilterLayerOIDsAndSelectionByRecord(FeatureLayer featLayer, List<long> incomingOIDs = null, 
+    internal static List<long> FilterLayerOIDsAndSelectionByRecord(FeatureLayer featLayer, List<long> incomingOIDs = null,
       ParcelRecord Record = null)
     {//if incomingOIDs is NULL, uses only selection
       List<long> idsOut = new();
@@ -686,7 +862,7 @@ namespace ParcelsAddin
       return new List<long>(idsOut);
     }
 
-    internal static async Task<string> GetParcelTypeNameFromFeatureLayer(ParcelLayer myParcelFabricLayer, 
+    internal static async Task<string> GetParcelTypeNameFromFeatureLayer(ParcelLayer myParcelFabricLayer,
       FeatureLayer featLayer, GeometryType geomType)
     {
       if (featLayer == null) //nothing to do return empty string
@@ -722,7 +898,7 @@ namespace ParcelsAddin
       return string.Empty;
     }
 
-    internal static async Task<FeatureLayer> GetFirstFeatureLayerFromParcelTypeName(ParcelLayer myParcelFabricLayer, 
+    internal static async Task<FeatureLayer> GetFirstFeatureLayerFromParcelTypeName(ParcelLayer myParcelFabricLayer,
       string ParcelTypeName, GeometryType geomType)
     {
       if (geomType == GeometryType.Polygon)
@@ -742,7 +918,7 @@ namespace ParcelsAddin
       return null;
     }
 
-    internal static void GetParcelPolygonFeatureLayersSelection(ParcelLayer myParcelFabricLayer, 
+    internal static void GetParcelPolygonFeatureLayersSelection(ParcelLayer myParcelFabricLayer,
       out Dictionary<FeatureLayer, List<long>> ParcelPolygonSelections)
     {
       List<FeatureLayer> featureLayer = new();
@@ -783,8 +959,8 @@ namespace ParcelsAddin
 
     internal static bool GetTargetFolder(string ConfigurationSettingsName, out string folderPath)
     {
-      folderPath =  ConfigurationsLastUsed.Default[ConfigurationSettingsName] as string;
-      BrowseProjectFilter bf = new (ItemFilters.Folders);
+      folderPath = ConfigurationsLastUsed.Default[ConfigurationSettingsName] as string;
+      BrowseProjectFilter bf = new(ItemFilters.Folders);
       //Display the filter in an Open Item dialog
       OpenItemDialog aBrowseForFolder = new()
       {
@@ -810,3 +986,4 @@ namespace ParcelsAddin
     }
   }
 }
+

@@ -167,7 +167,7 @@ namespace ParcelsAddin
                    ParcelLineToEdgeRelationship.EndVertexOnAnEdge
                    ); //ParcelLineToEdgeRelationship.All);
             }
-            catch
+            catch(Exception ex)
             {
               sReportResult += "-----------------------" + Environment.NewLine;
               sReportResult += "Layer: " + featlyr.Key.Name + Environment.NewLine;
@@ -176,6 +176,8 @@ namespace ParcelsAddin
               else
                 sReportResult += "Name: " + sName + Environment.NewLine;
               sReportResult += "No lines found for parcel polygon." + Environment.NewLine;
+              if (ex.Message != String.Empty)
+                sReportResult += ex.Message + Environment.NewLine;
               continue;
             }
             if (parcelEdgeCollection == null)
