@@ -70,8 +70,9 @@ namespace ParcelsAddin
           double dDirectionDifferenceToleranceInDecDeg =
             updateCOGOVM.ConfigureUpdateCOGOModel.DifferenceDirectionToleranceDecimalDegrees;
 
-          COGOUtils.GetCOGOLineFeatureLayersSelection(MapView.Active,
-            out Dictionary<FeatureLayer, List<long>> cogoLineLayerIds);
+          if (!COGOUtils.GetCOGOLineFeatureLayersSelection(MapView.Active,
+              out Dictionary<FeatureLayer, List<long>> cogoLineLayerIds))
+            return "Error encountered while getting COGO layer selections."; 
 
           //collect ground to grid correction values
           var mapView = MapView.Active;

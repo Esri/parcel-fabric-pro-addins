@@ -188,23 +188,28 @@ namespace ParcelsAddin
       return signPrefix + ang;
     }
 
-    internal static void GetCOGOLineFeatureLayersSelection(MapView myActiveMapView,
+    internal static bool GetCOGOLineFeatureLayersSelection(MapView myActiveMapView,
       out Dictionary<FeatureLayer, List<long>> COGOLineSelections)
     {
       List<FeatureLayer> featureLayer = new();
       COGOLineSelections = new();
-
-      var fLyrList = myActiveMapView.Map.GetLayersAsFlattenedList().OfType<FeatureLayer>().
-        Where(l => l.GetFeatureClass().GetDefinition().IsCOGOEnabled());
-
-      if (fLyrList == null) return;
-
-      foreach (var fLyr in fLyrList)
+      
+      try
       {
-        if (fLyr.SelectionCount > 0)
-          featureLayer.Add(fLyr);
-      }
+        var fLyrList = myActiveMapView?.Map?.GetLayersAsFlattenedList()?.OfType<FeatureLayer>()?.
+          Where(l => l != null).Where(l => (l as Layer).ConnectionStatus!=ConnectionStatus.Broken).
+          Where(l=> l.GetFeatureClass().GetDefinition().IsCOGOEnabled());
 
+        if (fLyrList == null) return false;
+
+        foreach (var fLyr in fLyrList)
+        {
+          if (fLyr.SelectionCount > 0)
+            featureLayer.Add(fLyr);
+        }
+      }
+      catch (Exception ex)
+      { return false; }
       foreach (var lyr in featureLayer)
       {
         var fc = lyr.GetFeatureClass();
@@ -224,6 +229,7 @@ namespace ParcelsAddin
         if (lstOids.Count > 0)
           COGOLineSelections[lyr] = lstOids;
       }
+      return true;
     }
 
     internal static double ConvertPolarRadiansToNorthAzimuth(double InDirection)
