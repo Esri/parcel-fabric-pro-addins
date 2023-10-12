@@ -84,7 +84,7 @@
 
     <StackPanel Grid.Row="10" Orientation="Horizontal" Margin="50,3,0,0" HorizontalAlignment="left" Grid.ColumnSpan="2">
       <TextBlock x:Name="lblDirectionDiffTolerance" Margin="0,3,10,0" ToolTip="Enter a larger lateral offset tolerance for fewer &#x0a; direction values overwritten."
-                         Text="Direction difference " Style="{DynamicResource Esri_TextBlockRegular}"/>
+                         Text="Direction tolerance " Style="{DynamicResource Esri_TextBlockRegular}"/>
     </StackPanel>
     <StackPanel Grid.Row="10" Orientation="Horizontal" Margin="50,3,0,0" HorizontalAlignment="right" Grid.ColumnSpan="2">
       <TextBox x:Name="txtDirectionDifferenceTolerance" Width="50" TextAlignment="Right" GotFocus="TextBox_GotFocus" PreviewTextInput="TextBox_PreviewTextInput"
