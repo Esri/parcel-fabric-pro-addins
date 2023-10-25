@@ -72,7 +72,7 @@ namespace ParcelsAddin
 
           if (!COGOUtils.GetCOGOLineFeatureLayersSelection(MapView.Active,
               out Dictionary<FeatureLayer, List<long>> cogoLineLayerIds))
-            return "Error encountered while getting COGO layer selections."; 
+            return "Error getting COGO layer selections."; 
 
           //collect ground to grid correction values
           var mapView = MapView.Active;
@@ -104,6 +104,11 @@ namespace ParcelsAddin
             //check for field presence
             bool hasCOGOTypeFld = fcDefinition.FindField("cogotype") > -1;
 
+            //check for field presence
+            bool hasAzimuthTypeFld = fcDefinition.FindField("azimuthtype") > -1;
+            GeodeticDirectionType azimuthType = GeodeticDirectionType.Grid; //default
+            bool azimuthTypeIsNull = true;
+
             double datasetMetersPerUnit = 1.0;
             if (fcDefinition.GetSpatialReference().IsProjected)
               datasetMetersPerUnit = fcDefinition.GetSpatialReference().Unit.ConversionFactor;
@@ -120,6 +125,17 @@ namespace ParcelsAddin
               var lineGeom = insp["shape"];
               if (lineGeom is not Polyline)
                 continue;
+
+              if (hasAzimuthTypeFld)
+              {
+                var currentAzimuthType = insp["azimuthtype"];
+                if (currentAzimuthType != DBNull.Value)
+                {
+                  //int value = (int)Enum.Parse(typeof(TestAppAreana.MovieList.Movies), KeyVal);
+                  azimuthType = (GeodeticDirectionType)(int)currentAzimuthType;
+                  azimuthTypeIsNull = false;
+                }
+              }
 
               var currentDirObj = insp["direction"];
               var currentDistObj = insp["distance"];
@@ -162,12 +178,11 @@ namespace ParcelsAddin
               }
 
               if (!COGOUtils.GetCOGOFromGeometry((Polyline)lineGeom, mapSpatRef, scaleFactor, directionOffsetCorrection,
-                       out object[] COGODirectionDistanceRadiusArcLength))
+                       out object[] COGODirectionDistanceRadiusArcLength, azimuthType))
               {
                 editOper.Abort();
                 return "Edit operation failed.";
               }
-
 
               if (bUpdateDirections && (bDirectionsUpdateAll ||
                     (bDirectionsUpdateByToleranceDifference && currentDirObj == DBNull.Value)))
@@ -183,7 +198,6 @@ namespace ParcelsAddin
               else if (bUpdateDirections &&
                       (bDirectionsUpdateOnlyNull || bDirectionsUpdateByToleranceDifference))
               {
-                //bool hasRetiredByGuid = ParcelUtils.TryGetObjectFromFieldUpperLowerCase()
                 if (currentDirObj == DBNull.Value && bDirectionsUpdateOnlyNull)
                 {
                   COGOAttributes.Add("direction", COGODirectionDistanceRadiusArcLength[0]);
@@ -299,6 +313,11 @@ namespace ParcelsAddin
                     }
                   }
                 }
+              }
+
+              if (hasAzimuthTypeFld && azimuthTypeIsNull)
+              {//only write this field if it starts out as null
+                COGOAttributes.Add("azimuthtype", azimuthType);
               }
 
               cps.Progressor.Value += 1;

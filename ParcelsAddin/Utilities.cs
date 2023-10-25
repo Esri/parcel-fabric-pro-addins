@@ -37,6 +37,14 @@ using System.Windows.Input;
 
 namespace ParcelsAddin
 {
+  internal enum GeodeticDirectionType : int
+  {
+    Grid = 1,
+    Rhumb = 2,
+    Geodetic = 3,
+    TrueMean = 4,
+    ReverseGeodetic = 5
+  }
   internal class COGOUtils
   {
     internal static string ConvertNorthAzimuthDecimalDegreesToDisplayUnit(double InDirection,
@@ -208,7 +216,7 @@ namespace ParcelsAddin
             featureLayer.Add(fLyr);
         }
       }
-      catch (Exception ex)
+      catch
       { return false; }
       foreach (var lyr in featureLayer)
       {
@@ -452,7 +460,8 @@ namespace ParcelsAddin
     }
 
     internal static bool GetCOGOFromGeometry(Polyline myLineFeature, SpatialReference MapSR, double ScaleFactor,
-        double DirectionOffset, out object[] COGODirectionDistanceRadiusArcLength)
+        double DirectionOffset, out object[] COGODirectionDistanceRadiusArcLength, 
+        GeodeticDirectionType geodeticAzimuthDirectionType = GeodeticDirectionType.Grid)
     {
       COGODirectionDistanceRadiusArcLength =
                           new object[4] { DBNull.Value, DBNull.Value, DBNull.Value, DBNull.Value };
@@ -462,8 +471,16 @@ namespace ParcelsAddin
         COGODirectionDistanceRadiusArcLength[1] = DBNull.Value;
 
         var GeomSR = myLineFeature.SpatialReference;
-        if (GeomSR.IsGeographic && MapSR.IsGeographic)
-          return false; //Future work: use API for Geodesics.
+        bool useGeodetic = GeomSR.IsGeographic && MapSR.IsGeographic;
+
+        if (useGeodetic && geodeticAzimuthDirectionType == GeodeticDirectionType.Grid)
+          geodeticAzimuthDirectionType = GeodeticDirectionType.Geodetic; //if grid reset default to fwd geodetic 
+        else if (geodeticAzimuthDirectionType == GeodeticDirectionType.Geodetic ||
+                 geodeticAzimuthDirectionType == GeodeticDirectionType.ReverseGeodetic ||
+                 geodeticAzimuthDirectionType == GeodeticDirectionType.TrueMean ||
+                 geodeticAzimuthDirectionType == GeodeticDirectionType.Rhumb)
+          useGeodetic = true;
+
         double MapSRMetersPerUnit = 1;
         double DatasetSRMetersPerUnit = 1;
 
@@ -484,15 +501,25 @@ namespace ParcelsAddin
         IList<Segment> iList = LineSegments as IList<Segment>;
         Segment FirstSeg = iList[0];
         Segment LastSeg = iList[numSegments - 1];
-
         var pLine = LineBuilderEx.CreateLineSegment(FirstSeg.StartCoordinate, LastSeg.EndCoordinate);
+        double distance = pLine.Length;
+        double direction = pLine.Angle;
+        if (useGeodetic)
+        {
+          if (!GetGeodeticDirectionDistanceFromPoints(FirstSeg.StartPoint, LastSeg.EndPoint,
+              geodeticAzimuthDirectionType, out object[] GeodeticDirectionDistance))
+            return false;
 
-        if (pLine.Length * MapSRMetersPerUnit > 0.0014)
+          direction = NorthAzimuthDecimalDegreesToPolarRadians((double)GeodeticDirectionDistance[0]);
+          distance = (double)GeodeticDirectionDistance[1];
+        }
+
+        if (distance * MapSRMetersPerUnit > 0.0014)
         {
           COGODirectionDistanceRadiusArcLength[0] =
-              PolarRadiansToNorthAzimuthDecimalDegrees(pLine.Angle - DirectionOffset * Math.PI / 180);
+              PolarRadiansToNorthAzimuthDecimalDegrees(direction - DirectionOffset * Math.PI / 180);
 
-          COGODirectionDistanceRadiusArcLength[1] = pLine.Length * MapSRMetersPerUnit /
+          COGODirectionDistanceRadiusArcLength[1] = distance * MapSRMetersPerUnit /
                   DatasetSRMetersPerUnit / ScaleFactor;
         }
         else
@@ -511,10 +538,10 @@ namespace ParcelsAddin
         var LastCenterPoint = pCircArcLast.CenterPoint;
         COGODirectionDistanceRadiusArcLength[2] = pCircArcLast.IsCounterClockwise ?
                 -pCircArcLast.SemiMajorAxis : Math.Abs(pCircArcLast.SemiMajorAxis); //radius
-        double dArcLengthSUM = 0;
+        double dArcLengthSUM = 0.0;
         //use 30 times xy tolerance for circular arc segment tangency test
         //around 3cms if using default XY Tolerance - recommended
-        double dTangencyToleranceTest = MapSR.XYTolerance * 30;
+        double dTangencyToleranceTest = MapSR.XYTolerance * 30.0;
         for (int i = 0; i < numSegments; i++)
         {
           pCircArc = iList[i] as EllipticArcSegment;
@@ -533,6 +560,30 @@ namespace ParcelsAddin
           }
           dArcLengthSUM += pCircArc.Length; //arc length sum
         }
+
+        if (useGeodetic && COGODirectionDistanceRadiusArcLength[2] != DBNull.Value)
+        { //get metric geodetic length for radius
+          bool CounterClockwise = (double)COGODirectionDistanceRadiusArcLength[2] < 0.0;
+          
+          if(!GetGeodeticDirectionDistanceFromPoints(FirstSeg.StartPoint, LastCenterPoint.ToMapPoint(GeomSR),
+              geodeticAzimuthDirectionType, out object[] GeodeticDirectionDistance))
+            return false;
+
+          double geodeticRadius = (double)GeodeticDirectionDistance[1];
+
+          if (CounterClockwise)
+            geodeticRadius = -geodeticRadius;
+          COGODirectionDistanceRadiusArcLength[2] = geodeticRadius;
+          //angle subtended by chord: 2 arcsin(chord length / (2R))
+          //arclength : Rθ
+          if (COGODirectionDistanceRadiusArcLength[1] != DBNull.Value)
+          {
+            double delta = 2.0 * Math.Asin(distance / (2.0 * Math.Abs(geodeticRadius)));
+            delta = pCircArcLast.IsMinor ? delta: 2.0 * Math.PI - delta;
+            dArcLengthSUM = delta * Math.Abs(geodeticRadius);
+          }
+        }
+
         //now check to see if the radius and arclength survived and if so, clear the distance
         if (COGODirectionDistanceRadiusArcLength[2] != DBNull.Value)
           COGODirectionDistanceRadiusArcLength[1] = DBNull.Value;
@@ -550,6 +601,64 @@ namespace ParcelsAddin
       }
     }
 
+    internal static bool GetGeodeticDirectionDistanceFromPoints(MapPoint point1, MapPoint point2, 
+      GeodeticDirectionType geodeticAzimuthDirectionType, out object[] GeodeticDirectionDistance)
+    {
+      GeodeticDirectionDistance = new object[2] { DBNull.Value, DBNull.Value};
+
+      if (geodeticAzimuthDirectionType == GeodeticDirectionType.Grid)
+        return false; //this function is for non-planar-cartesian
+
+      GeodeticCurveType geodeticCurveType = GeodeticCurveType.Geodesic;
+
+      if (geodeticAzimuthDirectionType == GeodeticDirectionType.Geodetic || 
+        geodeticAzimuthDirectionType == GeodeticDirectionType.ReverseGeodetic || 
+          geodeticAzimuthDirectionType == GeodeticDirectionType.TrueMean)
+        geodeticCurveType = GeodeticCurveType.Geodesic;
+      else if (geodeticAzimuthDirectionType == GeodeticDirectionType.Rhumb)
+        geodeticCurveType = GeodeticCurveType.Loxodrome;
+
+      try
+      {
+        double geodeticDistanceMeters = 
+          GeometryEngine.Instance.GeodeticDistanceAndAzimuth(point1, point2,
+          geodeticCurveType, LinearUnit.Meters, out double fwdAz, out double revAz);
+
+        if(geodeticAzimuthDirectionType == GeodeticDirectionType.Geodetic || 
+            geodeticAzimuthDirectionType == GeodeticDirectionType.Rhumb)
+          GeodeticDirectionDistance[0] = fwdAz;
+
+        if (geodeticAzimuthDirectionType == GeodeticDirectionType.ReverseGeodetic)
+          GeodeticDirectionDistance[0] = ForceZeroTo360Range(revAz-180.00);
+
+        if (geodeticAzimuthDirectionType == GeodeticDirectionType.TrueMean)
+        {
+          revAz = ForceZeroTo360Range(revAz - 180.00);
+          double halfDiff = GetOrientationCorrectionInDegrees(fwdAz, revAz)/2.0;
+          GeodeticDirectionDistance[0] = fwdAz + halfDiff;
+        }
+
+        GeodeticDirectionDistance[1] = geodeticDistanceMeters;
+
+        return true;
+      }
+      catch
+      { 
+        return false; 
+      }
+    }
+    internal static double ForceZeroTo360Range(double DirectionInDecimalDegrees)
+    {//handles negative directions and directions greater than 360°
+      var AngConv = DirectionUnitFormatConversion.Instance;
+      var ConvDef = new ConversionDefinition()
+      {
+        DirectionTypeIn = ArcGIS.Core.SystemCore.DirectionType.Polar,
+        DirectionUnitsIn = ArcGIS.Core.SystemCore.DirectionUnits.DecimalDegrees,
+        DirectionTypeOut = ArcGIS.Core.SystemCore.DirectionType.Polar,
+        DirectionUnitsOut = ArcGIS.Core.SystemCore.DirectionUnits.DecimalDegrees
+      };
+      return AngConv.ConvertToDouble(DirectionInDecimalDegrees, ConvDef);
+    }
     internal static double AngleDifferenceBetweenDirections(double DirectionInNorthAzimuthDegrees1,
       double DirectionInNorthAzimuthDegrees2)
     {
@@ -557,7 +666,18 @@ namespace ParcelsAddin
       var delta = 180.0 - Math.Abs(t - 180.0);
       return delta;
     }
+    internal static double GetOrientationCorrectionInDegrees(double DirectionInNorthAzimuthDegrees1,
+      double DirectionInNorthAzimuthDegrees2)
+    {
+      bool Dir2InFourthQuadrant = DirectionInNorthAzimuthDegrees2 >= 270.0 && DirectionInNorthAzimuthDegrees2 <= 360.0;
+      bool Dir1InFirstQuadrant = DirectionInNorthAzimuthDegrees1 >= 0.0 && DirectionInNorthAzimuthDegrees1 <= 90.0;
 
+      double signChange = Dir2InFourthQuadrant && Dir1InFirstQuadrant ? -1.0 : 1.0;
+
+      var t = (DirectionInNorthAzimuthDegrees2 - DirectionInNorthAzimuthDegrees1) % 360.0; //fMOD in C++
+      var delta = 180.0 - Math.Abs(t - 180.0);
+      return delta * signChange;
+    }
     internal static double InverseDirectionAsNorthAzimuth(Coordinate2D FromCoordinate, Coordinate2D ToCoordinate, bool Reversed)
     {
       var DirectionInPolarRadians = LineBuilderEx.CreateLineSegment(FromCoordinate, ToCoordinate).Angle;
@@ -588,6 +708,20 @@ namespace ParcelsAddin
       };
       return AngConv.ConvertToDouble(InPolarRadians, ConvDef);
     }
+
+    private static double NorthAzimuthDecimalDegreesToPolarRadians(double InDecimalDegrees)
+    {
+      var AngConv = DirectionUnitFormatConversion.Instance;
+      var ConvDef = new ConversionDefinition()
+      {
+        DirectionTypeIn = ArcGIS.Core.SystemCore.DirectionType.NorthAzimuth,
+        DirectionUnitsIn = ArcGIS.Core.SystemCore.DirectionUnits.DecimalDegrees,
+        DirectionTypeOut = ArcGIS.Core.SystemCore.DirectionType.Polar,
+        DirectionUnitsOut = ArcGIS.Core.SystemCore.DirectionUnits.Radians
+      };
+      return AngConv.ConvertToDouble(InDecimalDegrees, ConvDef);
+    }
+
   }
 
 
