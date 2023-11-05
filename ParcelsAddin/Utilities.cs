@@ -201,12 +201,12 @@ namespace ParcelsAddin
     {
       List<FeatureLayer> featureLayer = new();
       COGOLineSelections = new();
-      
+
       try
       {
         var fLyrList = myActiveMapView?.Map?.GetLayersAsFlattenedList()?.OfType<FeatureLayer>()?.
-          Where(l => l != null).Where(l => (l as Layer).ConnectionStatus!=ConnectionStatus.Broken).
-          Where(l=> l.GetFeatureClass().GetDefinition().IsCOGOEnabled());
+          Where(l => l != null).Where(l => (l as Layer).ConnectionStatus != ConnectionStatus.Broken).
+          Where(l => l.GetFeatureClass().GetDefinition().IsCOGOEnabled());
 
         if (fLyrList == null) return false;
 
@@ -460,7 +460,7 @@ namespace ParcelsAddin
     }
 
     internal static bool GetCOGOFromGeometry(Polyline myLineFeature, SpatialReference MapSR, double ScaleFactor,
-        double DirectionOffset, out object[] COGODirectionDistanceRadiusArcLength, 
+        double DirectionOffset, out object[] COGODirectionDistanceRadiusArcLength,
         GeodeticDirectionType geodeticAzimuthDirectionType = GeodeticDirectionType.Grid)
     {
       COGODirectionDistanceRadiusArcLength =
@@ -489,8 +489,13 @@ namespace ParcelsAddin
 
         if (MapSR.IsProjected)
         { //project the data geometry to map spatial reference
-            MapSRMetersPerUnit = MapSR.Unit.ConversionFactor; // Meters per unit.
-            myLineFeature = GeometryEngine.Instance.Project(myLineFeature, MapSR) as Polyline;
+          MapSRMetersPerUnit = MapSR.Unit.ConversionFactor; // Meters per unit.
+          myLineFeature = GeometryEngine.Instance.Project(myLineFeature, MapSR) as Polyline;
+        }
+
+        if (useGeodetic)
+        {
+          myLineFeature = (Polyline)ProjectGCSgeometryToCustomUTM(myLineFeature);
         }
 
         EllipticArcSegment pCircArc;
@@ -541,7 +546,7 @@ namespace ParcelsAddin
         double dArcLengthSUM = 0.0;
         //use 30 times xy tolerance for circular arc segment tangency test
         //around 3cms if using default XY Tolerance - recommended
-        double dTangencyToleranceTest = MapSR.XYTolerance * 30.0;
+        double dTangencyToleranceTest = myLineFeature.SpatialReference.XYTolerance * 30.0;
         for (int i = 0; i < numSegments; i++)
         {
           pCircArc = iList[i] as EllipticArcSegment;
@@ -560,37 +565,13 @@ namespace ParcelsAddin
           }
           dArcLengthSUM += pCircArc.Length; //arc length sum
         }
-
-        if (useGeodetic && COGODirectionDistanceRadiusArcLength[2] != DBNull.Value)
-        { //get metric geodetic length for radius
-          bool CounterClockwise = (double)COGODirectionDistanceRadiusArcLength[2] < 0.0;
-          
-          if(!GetGeodeticDirectionDistanceFromPoints(FirstSeg.StartPoint, LastCenterPoint.ToMapPoint(GeomSR),
-              geodeticAzimuthDirectionType, out object[] GeodeticDirectionDistance))
-            return false;
-
-          double geodeticRadius = (double)GeodeticDirectionDistance[1];
-
-          if (CounterClockwise)
-            geodeticRadius = -geodeticRadius;
-          COGODirectionDistanceRadiusArcLength[2] = geodeticRadius;
-          //angle subtended by chord: 2 arcsin(chord length / (2R))
-          //arclength : Rθ
-          if (COGODirectionDistanceRadiusArcLength[1] != DBNull.Value)
-          {
-            double delta = 2.0 * Math.Asin(distance / (2.0 * Math.Abs(geodeticRadius)));
-            delta = pCircArcLast.IsMinor ? delta: 2.0 * Math.PI - delta;
-            dArcLengthSUM = delta * Math.Abs(geodeticRadius);
-          }
-        }
-
         //now check to see if the radius and arclength survived and if so, clear the distance
         if (COGODirectionDistanceRadiusArcLength[2] != DBNull.Value)
           COGODirectionDistanceRadiusArcLength[1] = DBNull.Value;
 
-        COGODirectionDistanceRadiusArcLength[3] = dArcLengthSUM * 
+        COGODirectionDistanceRadiusArcLength[3] = dArcLengthSUM *
               MapSRMetersPerUnit / DatasetSRMetersPerUnit / ScaleFactor;
-        COGODirectionDistanceRadiusArcLength[2] = (double)COGODirectionDistanceRadiusArcLength[2] * 
+        COGODirectionDistanceRadiusArcLength[2] = (double)COGODirectionDistanceRadiusArcLength[2] *
               MapSRMetersPerUnit / DatasetSRMetersPerUnit / ScaleFactor;
 
         return true;
@@ -599,6 +580,185 @@ namespace ParcelsAddin
       {
         return false;
       }
+    }
+
+    internal static Geometry ProjectGCSgeometryToCustomUTM(Geometry gcsGeometry)
+    {
+      Geometry utmGeometry = gcsGeometry;
+      try
+      {
+        double scaleFactor = 1.0;
+        if (CreateUTMProjectionForGCSGeometry(gcsGeometry, scaleFactor, out SpatialReference helperPlanarSR))
+          utmGeometry = GeometryEngine.Instance.Project(gcsGeometry, helperPlanarSR) as Polyline;
+        return utmGeometry;
+      }
+      catch
+      { 
+        return utmGeometry;
+      }
+    }
+    internal static bool CreateUTMProjectionForGCSGeometry(Geometry theGeometry, double scaleFactor, out SpatialReference customUTM)
+    {
+      if (theGeometry.SpatialReference.IsProjected || theGeometry.SpatialReference.IsUnknown)
+      {
+        customUTM = theGeometry.SpatialReference;
+        return false;
+      }
+      try
+      {
+        double dLongitude = (theGeometry.Extent.XMin + theGeometry.Extent.XMax) / 2.0;
+
+        string strGCS = theGeometry.SpatialReference.GcsWkt;
+        string sLongi = dLongitude.ToString("F1");
+        string sFalseEasting = "0.0";
+        string sFalseNorthing = "0.0";
+        string sLatOfOrigin = "0.0";
+        string sScaleFactor = scaleFactor.ToString("F7");//"0.99995";//"0.9996";//"1.0";
+        string transverseMercator = "PROJECTION[\"Transverse_Mercator\"]," +
+          "PARAMETER[\"False_Easting\"," + sFalseEasting + "]," +
+          "PARAMETER[\"False_Northing\"," + sFalseNorthing + "]," +
+          "PARAMETER[\"Central_Meridian\"," + sLongi + "]," +
+          "PARAMETER[\"Scale_Factor\"," + sScaleFactor + "]," +
+          "PARAMETER[\"Latitude_Of_Origin\"," + sLatOfOrigin + "]," +
+          "UNIT[\"Meter\",1.0]]";
+        string utmSpatReference = "PROJCS[\"Custom\"," + strGCS + "," + transverseMercator;
+
+        customUTM = SpatialReferenceBuilder.CreateSpatialReference(utmSpatReference);
+        return true;
+      }
+      catch
+      { 
+        customUTM = theGeometry.SpatialReference; 
+        return false; 
+      }
+    }
+    internal static bool PointScaleFromProjectedGeometryDistance(Geometry theGeometry, double distanceInMeters, out double scaleFactor)
+    {
+      scaleFactor = 1.0;
+      double scaleFactorSum = 0.0;
+      if (!theGeometry.SpatialReference.IsProjected)
+      {
+        return false;
+      }
+      try
+      {
+        //string sScaleFactor = "0.99995";//"0.9996";//"1.0";
+        var startPoint = (Coordinate2D)GeometryEngine.Instance.Centroid(theGeometry);
+        double testDistance = distanceInMeters; //160000.0;
+        int cnt = 360;
+        int j = 1;
+        for (int i = 45; i <= cnt; i += 90)
+        {
+          var testPoint = PointInDirection(startPoint, i, testDistance);
+          GetGeodeticDirectionDistanceFromPoints(startPoint.ToMapPoint(theGeometry.SpatialReference), 
+            testPoint.ToMapPoint(theGeometry.SpatialReference),
+            GeodeticDirectionType.Geodetic, out object[] geodDirDist);
+          scaleFactorSum += (double)geodDirDist[1] / testDistance;
+          scaleFactor = scaleFactorSum / j++;
+        }
+        return true;
+      }
+      catch
+      {
+        return false;
+      }
+    }
+    internal static bool GetGeodeticRadiusFromSegment(Segment circularArcSegment, out double Radius)
+    {
+      //get geodetic radius from circular arc segment
+      Radius = 0.0;
+      try 
+      { 
+        if (circularArcSegment.SegmentType != SegmentType.EllipticArc)
+          return false;
+
+        var circularArcPolyLine = PolylineBuilderEx.CreatePolyline(circularArcSegment);
+        var arcLength = GeometryEngine.Instance.GeodesicLength(PolylineBuilderEx.CreatePolyline(circularArcPolyLine));
+
+        var chordDirection = 0.0;
+        var chordDistance = 0.0;
+        if (GetGeodeticDirectionDistanceFromPoints(circularArcSegment.StartPoint, circularArcSegment.EndPoint,
+            GeodeticDirectionType.Geodetic, out object[] geodeticDirDist))
+        {
+          chordDirection = (double)geodeticDirDist[0];
+          chordDistance = (double)geodeticDirDist[1];
+        }
+        else
+          return false;
+
+        //find the middle of the circular arc
+        //converge onto the arcLength/2.0
+        MapPoint pointHalfWay = null;
+        for (int i = 200; i <= 800; i++)
+        {//20% to 80% along the curve, test for convergence on geodetic halfway point.
+          double dRatio = i / 1000.0;
+          var subCurve = GeometryEngine.Instance.GetSubCurve(circularArcPolyLine, 0.0, dRatio, AsRatioOrLength.AsRatio);
+          var targetHalfArcLength = arcLength / 2.0;
+          var halfArcLength = GeometryEngine.Instance.GeodesicLength(PolylineBuilderEx.CreatePolyline(subCurve));
+
+          if (Math.Abs(targetHalfArcLength - halfArcLength) <= 0.01)
+          {
+            pointHalfWay = subCurve.Points[subCurve.PointCount - 1];
+            break;
+          }
+        }
+
+        if (pointHalfWay == null)
+          return false;
+
+        var subChordDirection = 0.0;
+        var subChordDistance = 0.0;
+        if (GetGeodeticDirectionDistanceFromPoints(circularArcSegment.StartPoint, pointHalfWay,
+            GeodeticDirectionType.Geodetic, out geodeticDirDist))
+        {
+          subChordDirection = (double)geodeticDirDist[0];
+          subChordDistance = (double)geodeticDirDist[1];
+        }
+        else
+          return false;
+
+        //create a local planar circular arc from the three points to get the radius and arclength
+        Coordinate2D start = new(1000.0, 1000.0);
+        var circArc = ConstructCircularArcByChordAndSubChord(start,
+          chordDirection, chordDistance, subChordDirection, subChordDistance);
+
+        if (circArc != null)
+        {
+          Radius = circArc.SemiMajorAxis;
+          return true;
+        }
+        else
+          return false;
+      }
+      catch
+      { 
+        return false; 
+      }
+    }
+  
+    internal static EllipticArcSegment ConstructCircularArcByChordAndSubChord(Coordinate2D FromCoordinate,
+      double NAzimuthDecDegChord, double DistanceChord, double NAzimuthDecDegSubChord, double DistanceSubChord)
+    {
+      if (DistanceSubChord == 0.0)
+        return null;
+
+      if (DistanceChord == 0.0)
+        return null;
+
+      var subChordPoint = PointInDirection(FromCoordinate, NAzimuthDecDegChord, DistanceChord);
+      var chordPoint = PointInDirection(FromCoordinate, NAzimuthDecDegSubChord, DistanceSubChord);
+      
+      EllipticArcSegment pCircArc;
+      try
+      {
+        pCircArc = EllipticArcBuilderEx.CreateCircularArc(FromCoordinate.ToMapPoint(),
+          chordPoint.ToMapPoint(), subChordPoint);
+      }
+      catch
+      { 
+        return null;
+      }
+      return pCircArc;
     }
 
     internal static bool GetGeodeticDirectionDistanceFromPoints(MapPoint point1, MapPoint point2, 
@@ -658,6 +818,15 @@ namespace ParcelsAddin
         DirectionUnitsOut = ArcGIS.Core.SystemCore.DirectionUnits.DecimalDegrees
       };
       return AngConv.ConvertToDouble(DirectionInDecimalDegrees, ConvDef);
+    }
+    internal static Coordinate2D PointInDirection(Coordinate2D FromCoordinate, double NAzimuthDecimalDegrees, double Distance)
+    {
+      Coordinate3D pVec1 = new(FromCoordinate.X, FromCoordinate.Y, 0);
+      Coordinate3D pVec2 = new();
+      double NAzimuthRadians = NAzimuthDecimalDegrees * Math.PI / 180;
+      pVec2.SetPolarComponents(NAzimuthRadians, 0, Distance);
+      Coordinate2D ComputedCoordinate = new(pVec1.AddCoordinate3D(pVec2));
+      return ComputedCoordinate;
     }
     internal static double AngleDifferenceBetweenDirections(double DirectionInNorthAzimuthDegrees1,
       double DirectionInNorthAzimuthDegrees2)
