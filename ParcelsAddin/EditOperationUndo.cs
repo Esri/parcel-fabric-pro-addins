@@ -49,7 +49,7 @@ namespace ParcelsAddin
     protected override void OnUpdate()
     {
       var opManager = MapView.Active?.Map?.OperationManager;
-      List<Operation> ops = new ();
+      List<Operation> ops = new();
       bool enableSate = false; //criteria enabled state  
       bool criteria = false;  //criteria for disabledText  
 
@@ -57,8 +57,8 @@ namespace ParcelsAddin
       {
         // find all the undo operations for the Editing category
         ops = opManager.FindUndoOperations(o => o.Category == "Editing");
-        enableSate = ops.Count() > 0; //criteria enabled state  
-        criteria = ops.Count() == 0;  //criteria for disabledText  
+        enableSate = ops.Count > 0; //criteria enabled state  
+        criteria = ops.Count == 0;  //criteria for disabledText  
       }
 
       if (enableSate)

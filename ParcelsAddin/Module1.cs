@@ -26,6 +26,7 @@ using ArcGIS.Desktop.Framework.Dialogs;
 using ArcGIS.Desktop.Framework.Threading.Tasks;
 using ArcGIS.Desktop.Layouts;
 using ArcGIS.Desktop.Mapping;
+using ArcGIS.Desktop.Mapping.Events;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -38,6 +39,29 @@ namespace ParcelsAddin
   internal class Module1 : Module
   {
     private static Module1 _this = null;
+    private bool _hasParcelSelection = false;
+    internal Module1()
+    {
+      //this code is used for tool enablement, based on parcel selection
+      //but is commented out as it is not used currently.
+      //(performance related reason. Fix TBD.)
+
+      //var commandId = "esri_editing_selectParcelFeaturesButton";
+
+      //if (FrameworkApplication.GetPlugInWrapper(commandId) is ICommand iCommand)
+      //  _hasParcelSelection = iCommand.CanExecute(null);
+
+      //MapSelectionChangedEvent.Subscribe(MapSelectionChangeEventMethod);
+    }
+
+    ~Module1()
+    {
+      //this code is used for tool enablement, based on parcel selection
+      //but is commented out as it is not used currently.
+      //(performance related reason. Fix TBD.)
+
+      //MapSelectionChangedEvent.Unsubscribe(MapSelectionChangeEventMethod);
+    }
 
     /// <summary>
     /// Retrieve the singleton instance to this module here
@@ -58,6 +82,22 @@ namespace ParcelsAddin
 
     #endregion Overrides
 
-  }
+    internal bool HasParcelPolygonSelection
+    {
+      get
+      {
+        return _hasParcelSelection;
+      }
+    }
 
+    private void MapSelectionChangeEventMethod(MapSelectionChangedEventArgs args)
+    {
+      var sel = args.Selection;
+      var selDict = sel.ToDictionary<FeatureLayer>();
+      var polygonLayers = selDict.Keys.Where(fl => fl.ShapeType == esriGeometryType.esriGeometryPolygon);
+
+      // if there are parcel polygon layers in the selection, set the flag to true.
+      _hasParcelSelection = polygonLayers.Any();
+    }
+  }
 }

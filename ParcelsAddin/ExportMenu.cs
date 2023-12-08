@@ -39,6 +39,24 @@ namespace ParcelsAddin
   {
     protected override async void OnClick()
     {
+      bool hasParcelSelection = await QueuedTask.Run(() =>
+      {
+        var selDict = MapView.Active?.Map?.GetSelection().ToDictionary<FeatureLayer>();
+        if (selDict == null)
+          return false;
+        var polygonLayers =
+          selDict.Keys.Where(fl => fl.ShapeType == esriGeometryType.esriGeometryPolygon)
+          .Where(fl => fl.IsControlledByParcelFabricAsync(ParcelFabricType.ParcelFabric).Result);
+        if (!polygonLayers.Any())
+          return false;
+        return true;
+      });
+      if (!hasParcelSelection)
+      {
+        MessageBox.Show("There is no parcel selection.", this.Caption);
+        return;
+      }
+
       //browse to a folder location to store the files
       if (!ParcelUtils.GetTargetFolder("ExportTraverseFileLastUsedParams", out string folderPath))
         return;
@@ -182,47 +200,70 @@ namespace ParcelsAddin
         }
       }, cps.Progressor);
     }
-    protected override void OnUpdate()
-    {
-      QueuedTask.Run(() =>
-      {
-        //confirm we have a license...
-        if (!ParcelUtils.HasValidLicenseForParcelLayer())
-        {
-          this.Enabled = false;
-          this.DisabledTooltip = "Insufficient license level.";
-          return;
-        }
 
-        var myParcelFabricLayer =
-        MapView.Active?.Map?.GetLayersAsFlattenedList().OfType<ParcelLayer>().FirstOrDefault();
+    //this code below is used for tool enablement, based on parcel selection
+    //but is commented out for performance related reason. Fix TBD.
 
-        //if there is no fabric in the map then bail
-        if (myParcelFabricLayer == null)
-        {
-          this.Enabled = false;
-          this.DisabledTooltip = "There is no fabric in the map.";
-          return;
-        }
-        if (ParcelUtils.HasParcelSelection(myParcelFabricLayer))
-        {
-          this.Enabled = true;  //tool is enabled  
-                                //this.Tooltip = "";
-        }
-        else
-        {
-          this.Enabled = false;  //tool is disabled  
-                                 //customize your disabledText here
-          this.DisabledTooltip = "There is no parcel selection.";
-        }
-      });
-    }
+    //protected override void OnUpdate()
+    //{
+    //  QueuedTask.Run(() =>
+    //  {
+    //    //confirm we have a license...
+    //    if (!ParcelUtils.HasValidLicenseForParcelLayer())
+    //    {
+    //      this.Enabled = false;
+    //      this.DisabledTooltip = "Insufficient license level.";
+    //      return;
+    //    }
+
+    //    //var myParcelFabricLayer =
+    //    //MapView.Active?.Map?.GetLayersAsFlattenedList().OfType<ParcelLayer>().FirstOrDefault();
+
+    //    ////if there is no fabric in the map then bail
+    //    //if (myParcelFabricLayer == null)
+    //    //{
+    //    //  this.Enabled = false;
+    //    //  this.DisabledTooltip = "There is no fabric in the map.";
+    //    //  return;
+    //    //}
+    //    //if (ParcelUtils.HasParcelSelection(myParcelFabricLayer))
+    //    if(Module1.Current.HasParcelPolygonSelection)
+    //    {
+    //      this.Enabled = true;  //tool is enabled  
+    //                            //this.Tooltip = "";
+    //    }
+    //    else
+    //    {
+    //      this.Enabled = false;  //tool is disabled  
+    //                             //customize your disabledText here
+    //      this.DisabledTooltip = "There is no parcel selection.";
+    //    }
+    //  });
+    //}
   }
 
   internal class Export_ParcelReportFile : Button
   {
     protected override async void OnClick()
     {
+      bool hasParcelSelection = await QueuedTask.Run(() =>
+      {
+        var selDict = MapView.Active?.Map?.GetSelection().ToDictionary<FeatureLayer>();
+        if (selDict == null)
+          return false;
+        var polygonLayers =
+          selDict.Keys.Where(fl => fl.ShapeType == esriGeometryType.esriGeometryPolygon)
+          .Where(fl => fl.IsControlledByParcelFabricAsync(ParcelFabricType.ParcelFabric).Result);
+        if (!polygonLayers.Any())
+          return false;
+        return true;
+      });
+      if (!hasParcelSelection)
+      {
+        MessageBox.Show("There is no parcel selection.", this.Caption);
+        return;
+      }
+
       //browse to a folder location to store the files
       if (!ParcelUtils.GetTargetFolder("ExportParcelReportFileLastUsedParams", out string folderPath))
         return;
@@ -696,34 +737,25 @@ namespace ParcelsAddin
       }, cps.Progressor);
     }
 
-    protected override void OnUpdate()
-    {
-      QueuedTask.Run(() =>
-      {
-        var myParcelFabricLayer =
-        MapView.Active?.Map?.GetLayersAsFlattenedList().OfType<ParcelLayer>().FirstOrDefault();
+    //this code below is used for tool enablement, based on parcel selection
+    //but is commented out for performance related reason. Fix TBD.
 
-        //if there is no fabric in the map then bail
-        if (myParcelFabricLayer == null)
-        {
-          this.Enabled = false;
-          this.DisabledTooltip = "There is no fabric in the map.";
-          return;
-        }
-        if (ParcelUtils.HasParcelSelection(myParcelFabricLayer))
-        {
-          this.Enabled = true;  //tool is enabled  
-                                //this.Tooltip = "";
-        }
-        else
-        {
-          this.Enabled = false;  //tool is disabled  
-                                 //customize your disabledText here
-          this.DisabledTooltip = "There is no parcel selection.";
-        }
-      });
-    }
-
+    //protected override void OnUpdate()
+    //{
+    //  QueuedTask.Run(() =>
+    //  {
+    //    if(Module1.Current.HasParcelPolygonSelection)
+    //    {
+    //      this.Enabled = true;  //tool is enabled  
+    //                            //this.Tooltip = "";
+    //    }
+    //    else
+    //    {
+    //      this.Enabled = false;  //tool is disabled  
+    //                             //customize your disabledText here
+    //      this.DisabledTooltip = "There is no parcel selection.";
+    //    }
+    //  });
+    //}
   }
-
 }

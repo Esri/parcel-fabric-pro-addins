@@ -157,9 +157,13 @@ namespace ParcelsAddin
               var tol = 0.03 / _datasetMetersPerUnit; //3 cms
               if (!_isPCS)
                 tol = Math.Atan(tol/(6378100.0/ _datasetMetersPerUnit));
+
+              var projectedGeom = GeometryEngine.Instance.Project(geometry,
+                featlyr.Key.GetSpatialReference());
+
               parcelEdgeCollection = 
                 await _parcelFabricLayer.GetSequencedParcelEdgeInfoAsync(
-                   featlyr.Key, oid, geometry as MapPoint, tol,
+                   featlyr.Key, oid, projectedGeom as MapPoint, tol,
                    ParcelLineToEdgeRelationship.BothVerticesMatchAnEdgeEnd |
                    ParcelLineToEdgeRelationship.StartVertexMatchesAnEdgeEnd |
                    ParcelLineToEdgeRelationship.EndVertexMatchesAnEdgeEnd |
@@ -340,19 +344,22 @@ namespace ParcelsAddin
       return Task.FromResult(true);
     }
 
-    protected override void OnUpdate()
-    {
-      QueuedTask.Run(() =>
-      {
-        //confirm we have a license...
-        if (!ParcelUtils.HasValidLicenseForParcelLayer())
-        {
-          this.Enabled = false;
-          this.DisabledTooltip = "Insufficient license level.";
-          return;
-        }
-      });
-    }
+    //this code below is used for tool enablement, based on parcel selection
+    //but is commented out for performance related reason. Fix TBD.
+
+    //protected override void OnUpdate()
+    //{
+    //  QueuedTask.Run(() =>
+    //  {
+    //    //confirm we have a license...
+    //    if (!ParcelUtils.HasValidLicenseForParcelLayer())
+    //    {
+    //      this.Enabled = false;
+    //      this.DisabledTooltip = "Insufficient license level.";
+    //      return;
+    //    }
+    //  });
+    //}
 
   }
 }

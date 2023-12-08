@@ -58,8 +58,8 @@ namespace ParcelsAddin
       {
         // find all the undo operations for the Editing category
         ops = opManager.FindRedoOperations(o => o.Category == "Editing");
-        enableSate = ops.Count() > 0; //criteria enabled state  
-        criteria = ops.Count() == 0;  //criteria for disabled
+        enableSate = ops.Count > 0; //criteria enabled state  
+        criteria = ops.Count == 0;  //criteria for disabled
       }
 
       if (enableSate)

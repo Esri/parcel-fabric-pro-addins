@@ -37,44 +37,56 @@ namespace ParcelsAddin
 {
   internal class UpdateMiscloseAndArea : Button
   {
-    protected override void OnUpdate()
-    {
-      QueuedTask.Run(() =>
-      {
-        //confirm we have a license...
-        if (!ParcelUtils.HasValidLicenseForParcelLayer())
-        {
-          this.Enabled = false;
-          this.DisabledTooltip = "Insufficient license level.";
-          return;
-        }
+    //this code below is used for tool enablement, based on parcel selection
+    //but is commented out for performance related reason. Fix TBD.
 
-        var myParcelFabricLayer =
-        MapView.Active?.Map?.GetLayersAsFlattenedList().OfType<ParcelLayer>().FirstOrDefault();
+    //protected override void OnUpdate()
+    //{
+    //  QueuedTask.Run(() =>
+    //  {
+    //    //confirm we have a license...
+    //    if (!ParcelUtils.HasValidLicenseForParcelLayer())
+    //    {
+    //      this.Enabled = false;
+    //      this.DisabledTooltip = "Insufficient license level.";
+    //      return;
+    //    }
 
-        //if there is no fabric in the map then bail
-        if (myParcelFabricLayer == null)
-        {
-          this.Enabled = false;
-          this.DisabledTooltip = "There is no fabric in the map.";
-          return;
-        }
-        if (ParcelUtils.HasParcelSelection(myParcelFabricLayer))
-        {
-          this.Enabled = true;  //tool is enabled  
-                                //this.Tooltip = "";
-        }
-        else
-        {
-          this.Enabled = false;  //tool is disabled  
-                                 //customize your disabledText here
-          this.DisabledTooltip = "There is no parcel selection.";
-        }
-      });
-    }
+    //    if(Module1.Current.HasParcelPolygonSelection)
+    //    {
+    //      this.Enabled = true;  //tool is enabled  
+    //                            //this.Tooltip = "";
+    //    }
+    //    else
+    //    {
+    //      this.Enabled = false;  //tool is disabled  
+    //                             //customize your disabledText here
+    //      this.DisabledTooltip = "There is no parcel selection.";
+    //    }
+    //  });
+    //}
 
     protected override async void OnClick()
     {
+      bool hasParcelSelection = await QueuedTask.Run(() =>
+      {
+        var selDict = MapView.Active?.Map?.GetSelection().ToDictionary<FeatureLayer>();
+        if (selDict == null)
+          return false;
+        var polygonLayers =
+          selDict.Keys.Where(fl => fl.ShapeType == esriGeometryType.esriGeometryPolygon)
+          .Where(fl => fl.IsControlledByParcelFabricAsync(ParcelFabricType.ParcelFabric).Result);
+        if (!polygonLayers.Any())
+          return false;
+        return true;
+      });
+
+      if (!hasParcelSelection)
+      {
+        MessageBox.Show("There is no parcel selection.", this.Caption);
+        return;
+      }
+
       double _largeParcelToleranceInSqMeters = 1011.715; //default to quarter acre in units of meters = 1011.715 sq.m
       long _largeParcelUnitCode = 109402; //acres as default
       double _sqMetersPerAreaUnit = 4046.86;//for acres as default
