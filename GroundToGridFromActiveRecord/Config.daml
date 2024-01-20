@@ -1,0 +1,59 @@
+﻿<!--
+/* Copyright 2024 Esri
+ *
+ * Licensed under the Apache License Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */  
+-->
+  <ArcGIS defaultAssembly="GroundToGridFromActiveRecord.dll" defaultNamespace="GroundToGridFromActiveRecord" xmlns="http://schemas.esri.com/DADF/Registry" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://schemas.esri.com/DADF/Registry file:///C:/Program%20Files/ArcGIS/Pro/bin/ArcGIS.Desktop.Framework.xsd">
+  <AddInInfo id="{436120fa-d800-498f-936d-644cbf0c10fd}" version="1.0" desktopVersion="3.2.49743">
+    <Name>Ground To Grid From Active Record</Name>
+    <Description>
+		  _________________         Description:
+		  This add-in sets the ground to grid values when changing the active record.
+		  To opt-in create two [double] fields on the Records feature class called 'DistanceFactor' and 'DirectionOffset'.
+	  </Description>
+    <Image>Images\FabricAddinDesktop32.png</Image>
+    <Author>Esri Parcel Team</Author>
+    <Company>Esri</Company>
+    <Date>1/19/2024 6:00:00 PM</Date>
+    <Subject>Parcel Fabric, Framework, Editing, Geodatabase, Geometry</Subject>
+    <!-- Note subject can be one or more of these topics:
+                    Content, Framework, Editing, Geodatabase, Geometry, Geoprocessing, Layouts, Map Authoring, Map Exploration -->
+  </AddInInfo>
+  <modules>
+    <insertModule id="GroundToGridFromActiveRecord_Module" className="Module1" autoLoad="true" caption="Module1">
+      <!-- uncomment to have the control hosted on a separate tab-->
+      <controls>
+        <button id="GroundToGridFromActiveRecord_StoreGroundToGridOnActiveRecord" caption="Save Ground To Grid To Record" className="StoreGroundToGridOnActiveRecord" 
+			loadOnClick="false" smallImage="pack://application:,,,/ArcGIS.Desktop.Resources;component/Images/EditingGroundToGridCorrectionTool16.png" 
+			largeImage="pack://application:,,,/ArcGIS.Desktop.Resources;component/Images/EditingGroundToGridCorrectionTool32.png"
+			keytip ="G">
+          <tooltip heading="Save Ground To Grid To Record">
+						Save the current ground to grid values to the active record.<disabledText /></tooltip>
+        </button>
+      </controls>
+      <groups>
+        <group id="GroundToGridFromActiveRecord_Group1" caption="Group 1" appearsOnAddInTab="true" keytip="G">
+          <button refID="GroundToGridFromActiveRecord_Button1" size="large" />
+        </group>
+      </groups>
+    </insertModule>
+    <updateModule refID="esri_editing_EditingModule">
+      <menus>
+        <updateMenu refID="esri_editing_ParcelHUDActiveRecordContextMenu">
+          <insertButton refID="GroundToGridFromActiveRecord_StoreGroundToGridOnActiveRecord" placeWith="esri_editing_parcel_HUD_AssignFeaturesToActiveRecord" insert="after" />
+        </updateMenu>
+      </menus>
+    </updateModule>
+  </modules>
+</ArcGIS>
