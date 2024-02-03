@@ -135,6 +135,8 @@ namespace ParcelsAddin
                   azimuthType = (GeodeticDirectionType)(int)currentAzimuthType;
                   azimuthTypeIsNull = false;
                 }
+                else
+                  azimuthType = GeodeticDirectionType.Grid;
               }
 
               var currentDirObj = insp["direction"];

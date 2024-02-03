@@ -493,7 +493,7 @@ namespace ParcelsAddin
           myLineFeature = GeometryEngine.Instance.Project(myLineFeature, MapSR) as Polyline;
         }
 
-        if (useGeodetic)
+        if (useGeodetic && !GeomSR.IsProjected)
         {
           myLineFeature = (Polyline)ProjectGCSgeometryToCustomUTM(myLineFeature);
         }
@@ -514,9 +514,11 @@ namespace ParcelsAddin
           if (!GetGeodeticDirectionDistanceFromPoints(FirstSeg.StartPoint, LastSeg.EndPoint,
               geodeticAzimuthDirectionType, out object[] GeodeticDirectionDistance))
             return false;
-
+          //always returns distance in meters.
           direction = NorthAzimuthDecimalDegreesToPolarRadians((double)GeodeticDirectionDistance[0]);
-          distance = (double)GeodeticDirectionDistance[1];
+          distance = (double)GeodeticDirectionDistance[1]/DatasetSRMetersPerUnit;
+          //distance is now in dataset units, so reset the unit factors to 1.0
+          MapSRMetersPerUnit = DatasetSRMetersPerUnit = 1.0;
         }
 
         if (distance * MapSRMetersPerUnit > 0.0014)
