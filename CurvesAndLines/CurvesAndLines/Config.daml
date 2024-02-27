@@ -1,0 +1,90 @@
+﻿<ArcGIS defaultAssembly="CurvesAndLines.dll" defaultNamespace="CurvesAndLines" xmlns="http://schemas.esri.com/DADF/Registry" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://schemas.esri.com/DADF/Registry file:///C:/Program%20Files/ArcGIS/Pro/bin/ArcGIS.Desktop.Framework.xsd">
+  <AddInInfo id="{28edd586-f83e-4ae7-b601-617673997c09}" version="1.0" desktopVersion="3.0.36057">
+    <Name>Curves And Lines</Name>
+    <Description>Tools to help find and edit features based on their geometry segment characteristics.</Description>
+    <Image>Images\FabricAddinDesktop32.png</Image>
+    <Author>Esri Parcel Team</Author>
+    <Company>Esri</Company>
+    <Date>02/26/2024 6:00:00 PM</Date>
+    <Subject>Editing, Geometry</Subject>
+    <!-- Note subject can be one or more of these topics:
+                    Content, Framework, Editing, Geodatabase, Geometry, Geoprocessing, Layouts, Map Authoring, Map Exploration -->
+  </AddInInfo>
+  <modules>
+    <insertModule id="CurvesAndLines_Module" className="Module1" autoLoad="false" caption="Module1">
+      <!--uncomment to have the control hosted on a separate tab-->
+      <tabs>
+        <tab id="CurvesAndLines_Tab1" caption="Curves And Lines">
+          <group refID="CurvesAndLines_Group3" />
+          <group refID="CurvesAndLines_Group1" />
+          <group refID="CurvesAndLines_Group2" />
+        </tab>
+      </tabs>
+      <groups>
+        <!-- comment this out if you have no controls on the Addin tab to avoid
+              an empty group-->
+        <group id="CurvesAndLines_Group3" caption="Manage Edits" appearsOnAddInTab="false" keytip="M">
+          <!-- host controls within groups -->
+          <button refID="ParcelsAddin_EditOperationUndo" size="large" />
+          <button refID="ParcelsAddin_EditOperationRedo" size="large" />
+          <button refID="esri_editing_SaveEditsBtn" size="middle" />
+          <button refID="esri_editing_DiscardEditsBtn" size="middle" />
+        </group>
+        <group id="CurvesAndLines_Group1" caption="Selection" appearsOnAddInTab="false" launcherButtonID="esri_mapping_openSelectionOptionsButton">
+          <!-- host controls within groups -->
+					<button refID="CurvesAndLines_SelectMultiSegmentLines" size="large" />
+          <button refID="CurvesAndLines_SelectCircularArcs" size="large" />
+					<button refID="CurvesAndLines_SelectStraightLines" size="large" />
+					<button refID="CurvesAndLines_SelectBeziers" size="middle" />
+          <button refID="CurvesAndLines_SelectEllipticalArcs" size="middle" />
+          <button refID="CurvesAndLines_SelectMultipart" size="middle" />
+          <button refID="esri_mapping_selectByRectangleTool" size="large" />
+          <button refID="esri_editing_ShowAttributes" size="small" />
+          <button refID="esri_geoprocessing_selectByAttributeButton" size="small" />
+          <button refID="esri_mapping_clearSelectionButton" size="small" />
+        </group>
+        <group id="CurvesAndLines_Group2" caption="Modify" appearsOnAddInTab="false">
+          <button refID="CurvesAndLines_SimplifyByTangentSegments" size="large" />
+          <button refID="CurvesAndLines_SimplifyBySingleSegmentCOGO" size="large" />
+          <button refID="esri_editing_SimplifyBySLACAButton" size="small" />
+          <button refID="esri_editing_PlanarizeLineFeatures" size="small" />
+          <button refID="esri_editing_splitIntoCOGOLines" size="small" />
+          <!--<button refID="esri_editing_ExtendTrimFeatures" size="small"/>-->
+        </group>
+      </groups>
+      <controls>
+        <!-- add your controls here -->
+        <button id="CurvesAndLines_SelectStraightLines" caption="Straight Lines" className="SelectStraightLines" loadOnClick="true" smallImage="Images\LineSelect16.png" largeImage="Images\LineSelect32.png">
+          <tooltip heading="Select Straight Lines">
+						Select features in the map extent that have straight line segments.<disabledText /></tooltip>
+        </button>
+        <button id="CurvesAndLines_SelectCircularArcs" caption="Circular Arcs" className="SelectCircularArcs" loadOnClick="true" smallImage="Images\CircularArcSelect16.png" largeImage="Images\CircularArcSelect32.png">
+          <tooltip heading="Select Circular Arcs">
+						Select features in the map extent that have circular arcs.<disabledText /></tooltip>
+        </button>
+				<button id="CurvesAndLines_SelectMultiSegmentLines" caption="Select Multi- Segment Lines" className="SelectMultiSegmentLines" loadOnClick="true" smallImage="Images\MultiSegmentSelect16.png" largeImage="Images\MultiSegmentSelect32.png">
+					<tooltip heading="Select Multi-Segment Lines">
+						Select lines in the map extent that have multi-segment geometry.<disabledText />
+					</tooltip>
+				</button>
+        <button id="CurvesAndLines_SelectBeziers" caption="Beziers" className="SelectBeziers" loadOnClick="true" smallImage="Images\BezierSelect16.png" largeImage="Images\BezierSelect32.png">
+          <tooltip heading="Select Beziers">Select features in the map extent that have bezier curves.<disabledText /></tooltip>
+        </button>
+        <button id="CurvesAndLines_SelectEllipticalArcs" caption="Elliptical Arcs" className="SelectEllipticalArcs" loadOnClick="true" smallImage="Images\EllipseSelect16.png" largeImage="Images\EllipseSelect32.png">
+          <tooltip heading="Select Elliptical Arcs">Select features in the map extent that have elliptical arcs.<disabledText /></tooltip>
+        </button>
+        <button id="CurvesAndLines_SelectMultipart" caption="Multiparts" className="SelectMultipart" loadOnClick="true" smallImage="Images\MultipartSelect16.png" largeImage="Images\MultipartSelect32.png">
+          <tooltip heading="Select Multiparts">
+						Select features in the map extent that are multiparts.<disabledText /></tooltip>
+        </button>
+        <button id="CurvesAndLines_SimplifyByTangentSegments" caption="Simplify By Tangent Segments" className="SimplifyByTangentSegments" loadOnClick="true" smallImage="Images\SimplifyByTangentSegments16.png" largeImage="Images\SimplifyByTangentSegments32.png">
+          <tooltip heading="Simplify By Tangent Segments">Simplify the selected features by removing vertices that are not bends.<disabledText /></tooltip>
+        </button>
+        <button id="CurvesAndLines_SimplifyBySingleSegmentCOGO" caption="Simplify By COGO" className="SimplifyBySingleSegmentCOGO" loadOnClick="true" smallImage="Images\SimplifyBySingleSegmentCOGO16.png" largeImage="Images\SimplifyBySingleSegmentCOGO32.png">
+          <tooltip heading="Simplify By COGO">
+						Simplify the selected lines into single segments using COGO attributes. End point locations are held fixed.<disabledText /></tooltip>
+        </button>
+      </controls>
+    </insertModule>
+  </modules>
+</ArcGIS>

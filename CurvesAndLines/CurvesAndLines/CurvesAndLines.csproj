@@ -1,0 +1,166 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net6.0-windows</TargetFramework>
+    <RuntimeIdentifier>win10-x64</RuntimeIdentifier>
+    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <NoWarn>CA1416</NoWarn>
+    <UseWPF>true</UseWPF>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Remove="Backup-2.x.zip" />
+    <None Remove="CurvesAndLines.csproj.bak" />
+    <None Remove="DarkImages\BezierSelect16.png" />
+    <None Remove="DarkImages\BezierSelect32.png" />
+    <None Remove="DarkImages\CircularArcSelect16.png" />
+    <None Remove="DarkImages\CircularArcSelect32.png" />
+    <None Remove="DarkImages\EllipseSelect16.png" />
+    <None Remove="DarkImages\EllipseSelect32.png" />
+    <None Remove="DarkImages\FabricAddInDesktop32.png" />
+    <None Remove="DarkImages\LineSelect16.png" />
+    <None Remove="DarkImages\LineSelect32.png" />
+    <None Remove="DarkImages\MultiPartSelect16.png" />
+    <None Remove="DarkImages\MultiPartSelect32.png" />
+    <None Remove="DarkImages\MultiSegmentSelect16.png" />
+    <None Remove="DarkImages\MultiSegmentSelect32.png" />
+    <None Remove="DarkImages\SimplifyBySingleSegmentCOGO16.png" />
+    <None Remove="DarkImages\SimplifyBySingleSegmentCOGO32.png" />
+    <None Remove="DarkImages\SimplifyByTangentSegments16.png" />
+    <None Remove="DarkImages\SimplifyByTangentSegments32.png" />
+    <None Remove="Images\BezierSelect16.png" />
+    <None Remove="Images\BezierSelect32.png" />
+    <None Remove="Images\CircularArcSelect16.png" />
+    <None Remove="Images\CircularArcSelect32.png" />
+    <None Remove="Images\EllipseSelect16.png" />
+    <None Remove="Images\EllipseSelect32.png" />
+    <None Remove="Images\FabricAddInDesktop32.png" />
+    <None Remove="Images\LineSelect16.png" />
+    <None Remove="Images\LineSelect32.png" />
+    <None Remove="Images\MultiPartSelect16.png" />
+    <None Remove="Images\MultiPartSelect32.png" />
+    <None Remove="Images\MultiSegmentSelect16.png" />
+    <None Remove="Images\MultiSegmentSelect32.png" />
+    <None Remove="Images\SimplifyBySingleSegmentCOGO16.png" />
+    <None Remove="Images\SimplifyBySingleSegmentCOGO32.png" />
+    <None Remove="Images\SimplifyByTangentSegments16.png" />
+    <None Remove="Images\SimplifyByTangentSegments32.png" />
+    <None Remove="Migration-2022-06-13_10-08-54.html" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="ArcGIS.Desktop.Framework">
+      <HintPath>C:\Program Files\ArcGIS\Pro\bin\ArcGIS.Desktop.Framework.dll</HintPath>
+      <CopyLocal>False</CopyLocal>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="ArcGIS.Core">
+      <HintPath>C:\Program Files\ArcGIS\Pro\bin\ArcGIS.Core.dll</HintPath>
+      <CopyLocal>False</CopyLocal>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="ArcGIS.Desktop.Core">
+      <HintPath>C:\Program Files\ArcGIS\Pro\bin\Extensions\Core\ArcGIS.Desktop.Core.dll</HintPath>
+      <CopyLocal>False</CopyLocal>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="ArcGIS.Desktop.Mapping">
+      <HintPath>C:\Program Files\ArcGIS\Pro\bin\Extensions\Mapping\ArcGIS.Desktop.Mapping.dll</HintPath>
+      <CopyLocal>False</CopyLocal>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="ArcGIS.Desktop.Catalog">
+      <HintPath>C:\Program Files\ArcGIS\Pro\bin\Extensions\Catalog\ArcGIS.Desktop.Catalog.dll</HintPath>
+      <CopyLocal>False</CopyLocal>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="ArcGIS.Desktop.Editing">
+      <HintPath>C:\Program Files\ArcGIS\Pro\bin\Extensions\Editing\ArcGIS.Desktop.Editing.dll</HintPath>
+      <CopyLocal>False</CopyLocal>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="ArcGIS.Desktop.Extensions">
+      <HintPath>C:\Program Files\ArcGIS\Pro\bin\Extensions\DesktopExtensions\ArcGIS.Desktop.Extensions.dll</HintPath>
+      <CopyLocal>False</CopyLocal>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="ArcGIS.Desktop.GeoProcessing">
+      <HintPath>C:\Program Files\ArcGIS\Pro\bin\Extensions\GeoProcessing\ArcGIS.Desktop.GeoProcessing.dll</HintPath>
+      <CopyLocal>False</CopyLocal>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="ArcGIS.Desktop.Layouts">
+      <HintPath>C:\Program Files\ArcGIS\Pro\bin\Extensions\Layout\ArcGIS.Desktop.Layouts.dll</HintPath>
+      <CopyLocal>False</CopyLocal>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="ArcGIS.Desktop.Shared.Wpf">
+      <HintPath>C:\Program Files\ArcGIS\Pro\bin\ArcGIS.Desktop.Shared.Wpf.dll</HintPath>
+      <CopyLocal>False</CopyLocal>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="ArcGIS.Desktop.Ribbon.Wpf">
+      <HintPath>C:\Program Files\ArcGIS\Pro\bin\ArcGIS.Desktop.Ribbon.Wpf.dll</HintPath>
+      <CopyLocal>False</CopyLocal>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="ArcGIS.Desktop.DataGrid.Contrib.Wpf">
+      <HintPath>C:\Program Files\ArcGIS\Pro\bin\ArcGIS.Desktop.DataGrid.Contrib.Wpf.dll</HintPath>
+      <CopyLocal>False</CopyLocal>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="ArcGIS.Desktop.Resources">
+      <HintPath>C:\Program Files\ArcGIS\Pro\bin\ArcGIS.Desktop.Resources.dll</HintPath>
+      <CopyLocal>False</CopyLocal>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="ArcGIS.Desktop.Resources">
+      <HintPath>C:\Program Files\ArcGIS\Pro\bin\ArcGIS.Desktop.Resources.dll</HintPath>
+      <CopyLocal>False</CopyLocal>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="ESRI.ArcGIS.ItemIndex">
+      <HintPath>C:\Program Files\ArcGIS\Pro\bin\ESRI.ArcGIS.ItemIndex.dll</HintPath>
+      <CopyLocal>False</CopyLocal>
+      <Private>False</Private>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="Config.daml" />
+    <Content Include="DarkImages\BezierSelect16.png" />
+    <Content Include="DarkImages\BezierSelect32.png" />
+    <Content Include="DarkImages\CircularArcSelect16.png" />
+    <Content Include="DarkImages\CircularArcSelect32.png" />
+    <Content Include="DarkImages\EllipseSelect16.png" />
+    <Content Include="DarkImages\EllipseSelect32.png" />
+    <Content Include="DarkImages\FabricAddInDesktop32.png" />
+    <Content Include="DarkImages\LineSelect16.png" />
+    <Content Include="DarkImages\LineSelect32.png" />
+    <Content Include="DarkImages\MultiPartSelect16.png" />
+    <Content Include="DarkImages\MultiPartSelect32.png" />
+    <Content Include="DarkImages\MultiSegmentSelect16.png" />
+    <Content Include="DarkImages\MultiSegmentSelect32.png" />
+    <Content Include="DarkImages\SimplifyBySingleSegmentCOGO16.png" />
+    <Content Include="DarkImages\SimplifyBySingleSegmentCOGO32.png" />
+    <Content Include="DarkImages\SimplifyByTangentSegments16.png" />
+    <Content Include="DarkImages\SimplifyByTangentSegments32.png" />
+    <Content Include="Images\BezierSelect16.png" />
+    <Content Include="Images\BezierSelect32.png" />
+    <Content Include="Images\CircularArcSelect16.png" />
+    <Content Include="Images\CircularArcSelect32.png" />
+    <Content Include="Images\EllipseSelect16.png" />
+    <Content Include="Images\EllipseSelect32.png" />
+    <Content Include="Images\FabricAddInDesktop32.png" />
+    <Content Include="Images\LineSelect16.png" />
+    <Content Include="Images\LineSelect32.png" />
+    <Content Include="Images\MultiPartSelect16.png" />
+    <Content Include="Images\MultiPartSelect32.png" />
+    <Content Include="Images\MultiSegmentSelect16.png" />
+    <Content Include="Images\MultiSegmentSelect32.png" />
+    <Content Include="Images\SimplifyBySingleSegmentCOGO16.png" />
+    <Content Include="Images\SimplifyBySingleSegmentCOGO32.png" />
+    <Content Include="Images\SimplifyByTangentSegments16.png" />
+    <Content Include="Images\SimplifyByTangentSegments32.png" />
+  </ItemGroup>
+  <Import Project="C:\Program Files\ArcGIS\Pro\bin\Esri.ProApp.SDK.Desktop.targets" Condition="Exists('C:\Program Files\ArcGIS\Pro\bin\Esri.ProApp.SDK.Desktop.targets') AND !Exists('Esri.ArcGISPro.Extensions.targets')" />
+</Project>
