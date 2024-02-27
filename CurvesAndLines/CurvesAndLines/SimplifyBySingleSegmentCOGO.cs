@@ -1,4 +1,19 @@
-﻿using ArcGIS.Core.CIM;
+﻿/* Copyright 2024 Esri
+ *
+ * Licensed under the Apache License Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+using ArcGIS.Core.CIM;
 using ArcGIS.Core.Data;
 using ArcGIS.Core.Geometry;
 using ArcGIS.Desktop.Catalog;
@@ -26,8 +41,10 @@ namespace CurvesAndLines
       CancelableProgressorSource cps = new("Simplify by COGO Segment", "Canceled");
       Dictionary<FeatureLayer, List<long>> cogoLineLayer2ReportIds = new();
       
-      bool maxReportLengthReached = false;
+      int maxReportedLines = 11;
       string sReportResult = "";
+      List<string> sReportChangedLineList = new();
+      List<string> sReportDisjointPointList = new();
       string errorMessage = await QueuedTask.Run( () =>
       {
         int ignoreCount = 0;
@@ -36,6 +53,7 @@ namespace CurvesAndLines
         int geometryCOGOComparisonFail = 0;
         int iAllSelectedLinesProcessedCount = 0;
         int updatedLineGeometryCount = 0;
+        int geometryUnchangedCount = 0;
 
         try
         {
@@ -166,10 +184,10 @@ namespace CurvesAndLines
                   ICollection<Segment> LineSegments = new List<Segment>();
                   (lineGeom as Polyline).GetAllSegments(ref LineSegments);
                   int numSegments = LineSegments.Count;
+                  bool bOriginalIsSingleSegment = numSegments == 1;
+
                   IList<Segment> iList = LineSegments as IList<Segment>;
-
                   var originalPolyLineLength = (lineGeom as Polyline).Length;
-
                   var originalMidPoint = GeometryEngine.Instance.MovePointAlongLine(lineGeom as Multipart, 0.5, true, 0.0, SegmentExtensionType.NoExtension);
 
                   //create a new segment from start point to end point
@@ -412,7 +430,6 @@ namespace CurvesAndLines
                         cps.Progressor.Value += 1;
                         continue;
                       }
-                      //newDeltaInRadians = minMaj == MinorOrMajor.Minor ? newDeltaInRadians : (2.0 * Math.PI) - newDeltaInRadians;
                       double COGOArclength = newDeltaInRadians * COGORadius; //computed ArcLength for COGO radius and chord length
                       ArcOrientation orientation = (double)cogoRadius < 0.0 ? ArcOrientation.ArcCounterClockwise : ArcOrientation.ArcClockwise;
 
@@ -487,11 +504,9 @@ namespace CurvesAndLines
                   if (GeometryEngine.Instance.Disjoint(QAstartPoint, startPointDS))
                   {//don't allow an edit with disjoint start or end points
                     var distQA = GeometryEngine.Instance.GeodesicDistance(QAstartPoint, startPointDS);
-                    if(sReportResult.Length < 1000)
-                      sReportResult += "Disjoint start point (" + distQA.ToString("F3") + " m). Result ignored, oid: " + oid.ToString() + Environment.NewLine;
-                    else
-                      maxReportLengthReached = true;
-
+                    sReportDisjointPointList.Add("Disjoint start point (" + distQA.ToString("F3") + 
+                      " m). Result ignored, oid: " + oid.ToString());
+ 
                     if (!cogoLineLayer2ReportIds.ContainsKey(cogoLyr.Key))
                       cogoLineLayer2ReportIds.Add(cogoLyr.Key, lstReportOids);
                     lstReportOids.Add(oid);
@@ -502,11 +517,9 @@ namespace CurvesAndLines
                   if (GeometryEngine.Instance.Disjoint(QAendPoint, endPointDS))
                   {//don't allow disjoint start or end points
                     var distQA = GeometryEngine.Instance.GeodesicDistance(QAendPoint, endPointDS);
-                    if (sReportResult.Length < 1000)
-                      sReportResult += "Disjoint end point (" + distQA.ToString("F3") + " m). Result ignored, oid: " + oid.ToString() + Environment.NewLine;
-                    else
-                      maxReportLengthReached = true;
-
+                    sReportDisjointPointList.Add("Disjoint end point (" + distQA.ToString("F3") + 
+                      " m). Result ignored, oid: " + oid.ToString());
+                    
                     if (!cogoLineLayer2ReportIds.ContainsKey(cogoLyr.Key))
                       cogoLineLayer2ReportIds.Add(cogoLyr.Key, lstReportOids);
                     lstReportOids.Add(oid);
@@ -527,14 +540,16 @@ namespace CurvesAndLines
                   if (Math.Abs(newGeom.Length - originalPolyLineLength) > qaLengthTest ||
                     qaMidPointOffset > qaLengthTest)
                   {
-                    if (sReportResult.Length < 1000)
-                      sReportResult += "Line length was changed significantly, oid: " + oid.ToString() + Environment.NewLine;
-                    else
-                      maxReportLengthReached = true;
+                    sReportChangedLineList.Add("Line length was changed significantly, oid: " + oid.ToString());
 
                     if (!cogoLineLayer2ReportIds.ContainsKey(cogoLyr.Key))
                       cogoLineLayer2ReportIds.Add(cogoLyr.Key, lstReportOids);
                     lstReportOids.Add(oid);
+                  }
+                  else if (bOriginalIsSingleSegment & !bReversedGeometry)
+                  {
+                    geometryUnchangedCount++;
+                    continue; //skip edits that are not needed                  
                   }
 
                   editOper.Modify(cogoLyr.Key, oid, newGeom);
@@ -550,7 +565,8 @@ namespace CurvesAndLines
 
             if (cps.Progressor.CancellationToken.IsCancellationRequested)
               break;
-            cps.Progressor.Status = "Updating " + updatedLineGeometryCount + " lines ...";
+            cps.Progressor.Status = "Updating " + updatedLineGeometryCount + " lines ..." + Environment.NewLine +
+              "Lines not changed: " + geometryUnchangedCount.ToString();
           }
           if (!editOper.IsEmpty)
             editOper.Execute();
@@ -572,14 +588,36 @@ namespace CurvesAndLines
       if (cps.Progressor.CancellationToken.IsCancellationRequested)
         return;
 
+      int cnt = 0;
+      foreach (string sReportLine in sReportChangedLineList)
+      {
+        cnt++;
+        if (cnt <= maxReportedLines)
+          sReportResult += sReportLine + Environment.NewLine;
+        else
+          break;
+      }
+
+      foreach (string sReportLine in sReportDisjointPointList)
+      {
+        cnt++;
+        if (cnt <= maxReportedLines)
+          sReportResult += sReportLine;
+        else
+          break;
+      }
+
+      cnt = sReportChangedLineList.Count + sReportDisjointPointList.Count; //re-use cnt variable
+
       if (!string.IsNullOrEmpty(errorMessage))
         MessageBox.Show(errorMessage, "Simplify By COGO Attributes");
       else if (!string.IsNullOrEmpty(sReportResult))
       {
-        if (maxReportLengthReached)
-          sReportResult += Environment.NewLine + "Maximium string report reached. Other results not reported.";
+        if (cnt >= maxReportedLines)
+          sReportResult += Environment.NewLine + "Maximium report string reached."+ Environment.NewLine + 
+            "Full list includes " + cnt.ToString() + " features." + Environment.NewLine;
 
-        sReportResult += Environment.NewLine + "Do you want to select the reported features?";
+        sReportResult += Environment.NewLine + "Do you want to select these line features?";
         if (MessageBox.Show(sReportResult, "Simplify By COGO Attributes", System.Windows.MessageBoxButton.YesNo) == System.Windows.MessageBoxResult.Yes)
         { //Select the reported line features
           await QueuedTask.Run(() =>
