@@ -173,9 +173,16 @@ namespace ParcelsAddin
                     specialCaseUpdateDirectionOnly = true;
                     break;
                   }
+
+                  //check for very flat circular arc GEOMETRY
+                  //var circularArcMidPoint = GeometryEngine.Instance.MovePointAlongLine(lineGeom as Multipart, 0.5, true, 0.0, SegmentExtensionType.NoExtension);
+                  //var chordLine = LineBuilderEx.CreateLineSegment(pCircArc.StartPoint,pCircArc.EndPoint);
+                  //var chordMidPoint = GeometryEngine.Instance.ConstructPointFromAngleDistance(pCircArc.StartPoint,
+                  //  chordLine.Angle, chordLine.Length / 2.0);
+
                   specialCaseUpdateDirectionOnly = 
-                    (180.0/Math.PI * Math.Abs((double)currentArclengthObj / (double)currentRadiusObj))<1.0;
-                  //central angle based on COGO is less than 1° means flat circular arc
+                    (180.0/Math.PI * Math.Abs(pCircArc.Length / pCircArc.SemiMajorAxis))<1.0;
+                  //central angle based on GEOMETRY is less than 1° means flat circular arc
                 }
               }
 
@@ -270,11 +277,11 @@ namespace ParcelsAddin
                       COGOAttributes.Add("iscogoground", 1);
                     }
                   }
-                  else if (bDistancesUpdateByToleranceDifference && currentDistObj != DBNull.Value &&
+                  else if (bDistancesUpdateByToleranceDifference &&
                     COGODirectionDistanceRadiusArcLength[1] != DBNull.Value)
                   {
                     //test the difference tolerances
-                    if (!isCircularArc)
+                    if (!isCircularArc && currentDistObj != DBNull.Value)
                     {//Straight line. Values are in dataset units.
                       double currentDistance = (double)currentDistObj;
                       double incomingDistance = (double)COGODirectionDistanceRadiusArcLength[1];
@@ -293,7 +300,11 @@ namespace ParcelsAddin
                         }
                       }
                     }
-                    else if (isCircularArc)
+                  }
+                  if (bDistancesUpdateByToleranceDifference &&
+                    COGODirectionDistanceRadiusArcLength[3] != DBNull.Value)
+                  {
+                    if (isCircularArc)
                     {// Circular arc. Values are in dataset units.
                       double currentArclength = (double)currentArclengthObj;
                       double incomingArclength = (double)COGODirectionDistanceRadiusArcLength[3];
