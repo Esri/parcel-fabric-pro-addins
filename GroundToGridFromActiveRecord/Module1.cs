@@ -33,12 +33,15 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Input;
+using ArcGIS.Desktop.Framework.Events;
+using ArcGIS.Desktop.Core.Events;
 
 namespace GroundToGridFromActiveRecord
 {
   internal class Module1 : Module
   {
     private static Module1 _this = null;
+    private static bool _projectOpenEvent = true;
 
     internal Module1()
     {
@@ -51,6 +54,11 @@ namespace GroundToGridFromActiveRecord
     }
     private async void ActiveRecordEventMethod(ParcelRecordEventArgs e)
     {
+      if (_projectOpenEvent)
+      {
+        _projectOpenEvent = false; //set the flag to make sure to get all following active record events within this project
+        return; //ignore first event on startup
+      }
       var theNewActiveRecord = e.IncomingActiveRecord;
       var newRecName = theNewActiveRecord?.Name;
 
@@ -130,6 +138,25 @@ namespace GroundToGridFromActiveRecord
       await mapView.Map.SetGroundToGridCorrection(cim_g2g);
     }
 
+
+    #region when a project is opened
+    protected override bool Initialize() //Called when the Module is initialized.
+    {
+      ProjectOpenedEvent.Subscribe(OnProjectOpened); //subscribe to Project opened event
+      return base.Initialize();
+    }
+
+    private void OnProjectOpened(ProjectEventArgs obj) //Project Opened event handler
+    {
+      _projectOpenEvent = true;
+    }
+
+    protected override void Uninitialize() //unsubscribe to the project opened event
+    {
+      ProjectOpenedEvent.Unsubscribe(OnProjectOpened); //unsubscribe
+      return;
+    }
+    #endregion
 
     /// <summary>
     /// Retrieve the singleton instance to this module here
