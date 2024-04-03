@@ -1,5 +1,5 @@
 ﻿<!--
-/* Copyright 2023 Esri
+/* Copyright 2024 Esri
  *
  * Licensed under the Apache License Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,13 +15,13 @@
  */  
 -->
 <ArcGIS defaultAssembly="ParcelsAddin.dll" defaultNamespace="ParcelsAddin" xmlns="http://schemas.esri.com/DADF/Registry" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://schemas.esri.com/DADF/Registry file:///C:/Program%20Files/ArcGIS/Pro/bin/ArcGIS.Desktop.Framework.xsd">
-  <AddInInfo id="{d4508f6d-9f77-436e-a950-574f3af20720}" version="1.4.1" desktopVersion="3.0.36056">
+  <AddInInfo id="{d4508f6d-9f77-436e-a950-574f3af20720}" version="1.4.2" desktopVersion="3.0.36056">
     <Name>Parcel Utilities</Name>
     <Description>Parcel fabric tools</Description>
     <Image>Images\FabricAddinDesktop32.png</Image>
     <Author>Esri Parcel Team</Author>
     <Company>Esri</Company>
-    <Date>02/28/2024 01:00:00 PM</Date>
+    <Date>04/02/2024 06:00:00 PM</Date>
     <Subject>Editing, Geodatabase, Geometry</Subject>
     <!-- Note subject can be one or more of these topics:
                     Content, Framework, Editing, Geodatabase, Geometry, Geoprocessing, Layouts, Map Authoring, Map Exploration -->

@@ -1,4 +1,4 @@
-﻿/* Copyright 2023 Esri
+﻿/* Copyright 2024 Esri
  *
  * Licensed under the Apache License Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -148,7 +148,7 @@ namespace ParcelsAddin
                 currentDistObj == DBNull.Value && currentArclengthObj == DBNull.Value
                   && currentRadiusObj == DBNull.Value;
 
-              bool isCircularArc = currentRadiusObj != DBNull.Value && currentArclengthObj != DBNull.Value;
+              bool isCircularArcCOGO = currentRadiusObj != DBNull.Value && currentArclengthObj != DBNull.Value;
 
               //Special cases: check for spiral, or flat circular arcs
               //In these cases only the direction is updated
@@ -164,11 +164,10 @@ namespace ParcelsAddin
                 IList<Segment> iList = LineSegments as IList<Segment>;
                 for (int i = 0; i < numSegments; i++)
                 {
-                  var pCircArc = iList[i] as EllipticArcSegment;
-                  if (pCircArc == null)
+                  if (iList[i] is not EllipticArcSegment pCircArc)
                     break;
 
-                  if ((double)currentRadiusObj == 0)
+                  if ((double)currentRadiusObj == 0.0)
                   {
                     specialCaseUpdateDirectionOnly = true;
                     break;
@@ -192,6 +191,12 @@ namespace ParcelsAddin
                 editOper.Abort();
                 return "Edit operation failed.";
               }
+
+              bool isCircularArcGeometry = COGODirectionDistanceRadiusArcLength[2] != DBNull.Value &&
+                COGODirectionDistanceRadiusArcLength[3] != DBNull.Value;
+
+              bool isStraightLineGeometry = COGODirectionDistanceRadiusArcLength[2] == DBNull.Value &&
+                COGODirectionDistanceRadiusArcLength[3] == DBNull.Value;
 
               if (bUpdateDirections && (bDirectionsUpdateAll ||
                     (bDirectionsUpdateByToleranceDifference && currentDirObj == DBNull.Value)))
@@ -281,7 +286,7 @@ namespace ParcelsAddin
                     COGODirectionDistanceRadiusArcLength[1] != DBNull.Value)
                   {
                     //test the difference tolerances
-                    if (!isCircularArc && currentDistObj != DBNull.Value)
+                    if (!isCircularArcCOGO && currentDistObj != DBNull.Value)
                     {//Straight line. Values are in dataset units.
                       double currentDistance = (double)currentDistObj;
                       double incomingDistance = (double)COGODirectionDistanceRadiusArcLength[1];
@@ -300,11 +305,25 @@ namespace ParcelsAddin
                         }
                       }
                     }
+                    else if (isStraightLineGeometry)
+                    {
+                      COGOAttributes.Add("distance", COGODirectionDistanceRadiusArcLength[1]);
+                      COGOAttributes.Add("radius", COGODirectionDistanceRadiusArcLength[2]); //this will always be NULL here
+                      COGOAttributes.Add("arclength", COGODirectionDistanceRadiusArcLength[3]);//this will always be NULL here
+
+                      if (isControlledByFabric)
+                      {
+                        if (hasCOGOTypeFld && !COGOAttributes.ContainsKey("cogotype"))
+                          COGOAttributes.Add("cogotype", 2); // always 'FromGeometry'
+                        COGOAttributes.Add("scale", scaleFactor);
+                        COGOAttributes.Add("iscogoground", 1);
+                      }
+                    }
                   }
                   if (bDistancesUpdateByToleranceDifference &&
                     COGODirectionDistanceRadiusArcLength[3] != DBNull.Value)
                   {
-                    if (isCircularArc)
+                    if (isCircularArcCOGO)
                     {// Circular arc. Values are in dataset units.
                       double currentArclength = (double)currentArclengthObj;
                       double incomingArclength = (double)COGODirectionDistanceRadiusArcLength[3];
@@ -322,6 +341,19 @@ namespace ParcelsAddin
                           COGOAttributes.Add("scale", scaleFactor);
                           COGOAttributes.Add("iscogoground", 1);
                         }
+                      }
+                    }
+                    else if (isCircularArcGeometry && !isCircularArcCOGO) 
+                    {// "&& !isCircularArcCOGO" not needed here, but included for code reading clarity
+                      COGOAttributes.Add("distance", COGODirectionDistanceRadiusArcLength[1]); //this will always be NULL here
+                      COGOAttributes.Add("radius", COGODirectionDistanceRadiusArcLength[2]);
+                      COGOAttributes.Add("arclength", COGODirectionDistanceRadiusArcLength[3]);
+                      if (isControlledByFabric)
+                      {
+                        if (hasCOGOTypeFld && !COGOAttributes.ContainsKey("cogotype"))
+                          COGOAttributes.Add("cogotype", 2); // always 'FromGeometry'
+                        COGOAttributes.Add("scale", scaleFactor);
+                        COGOAttributes.Add("iscogoground", 1);
                       }
                     }
                   }
