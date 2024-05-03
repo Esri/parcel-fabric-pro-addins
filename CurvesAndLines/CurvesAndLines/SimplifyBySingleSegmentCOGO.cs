@@ -124,6 +124,15 @@ namespace CurvesAndLines
                     cps.Progressor.Value += 1;
                     continue;
                   }
+
+                  //check for multi-parts and skip (not implemented)
+                  if ((lineGeom as Polyline).PartCount > 1)
+                  {
+                    ignoreCount++;
+                    cps.Progressor.Value += 1;
+                    continue;
+                  }
+
                   var oid = rowLine.GetObjectID();
                   var cogoDir = rowLine["direction"];
                   var cogoDist = rowLine["distance"];
@@ -263,13 +272,6 @@ namespace CurvesAndLines
                         continue;
                       }
 
-                      if (COGORadius * 2.0 - geometryChordDistance < 0.0)
-                      {
-                        inconsistentRadiusArcLengthChordCount++;
-                        cps.Progressor.Value += 1;
-                        continue;
-                      }
-
                       ArcOrientation orientation = (double)cogoRadius < 0.0 ? ArcOrientation.ArcCounterClockwise : ArcOrientation.ArcClockwise;
                       //compute the geometry from cogo
                       var circArcFromCOGO = EllipticArcBuilderEx.CreateCircularArc(newSegment, true, orientation, COGORadius, COGOArclength, datasetProjection);
@@ -281,11 +283,15 @@ namespace CurvesAndLines
                       if (datasetInGCS)
                         chordComparisonTolerance = chordComparisonToleranceGCS;
 
+                      bool isHalfCircle = Math.Abs(COGORadius * Math.PI - COGOArclength) <= chordComparisonTolerance;
                       if (testDifference < chordComparisonTolerance) //tolerance unit conversion checks for different maps
-                      { //there is enough to compute a curve
+                      { //there is still enough to compute a curve
                         inconsistentRadiusArcLengthChordCount++;// arclength and radius are inconsistent with point locations
                                                                 // update the circular arc using COGO radius and chord distance
-                        var newDeltaInRadians = 2.0 * Math.Asin(computedCOGOChordDistance / (2.0 * COGORadius));
+                        var newDeltaInRadians = Math.PI;
+                        if (!isHalfCircle)
+                          newDeltaInRadians = 2.0 * Math.Asin(computedCOGOChordDistance / (2.0 * COGORadius));
+
                         newDeltaInRadians = minMaj == MinorOrMajor.Minor ? newDeltaInRadians : (2.0 * Math.PI) - newDeltaInRadians;
                         COGOArclength = newDeltaInRadians * COGORadius; //updated ArcLength to match radius and chord length
                       }
@@ -332,7 +338,6 @@ namespace CurvesAndLines
                         Segment circArcFromCOGOGCS = null;
                         try
                         {
-                          bool isHalfCircle = Math.Abs(COGORadius * Math.PI - COGOArclength) <= chordComparisonToleranceGCS;
                           circArcFromCOGOGCS = EllipticArcBuilderEx.CreateCircularArc(newSegmentMapSR, false, orientation, COGORadius/mapMetersPerUnit, 
                             COGOArclength/mapMetersPerUnit, mapSR);
                         }
@@ -373,19 +378,36 @@ namespace CurvesAndLines
                           newSegment = EllipticArcBuilderEx.CreateCircularArc(newSegment.StartPoint, endPointDS, ctrPoint, orientation);
                         }
                       }
-
                       if (bReversedGeometry)
                       {
                         try
                         {
                           if (!datasetInGCS)
-                            newSegment = EllipticArcBuilderEx.CreateCircularArc(FirstSeg.EndCoordinate.ToMapPoint(), geometryChordDistance,
-                              geometryDirectionInPolarRadians + Math.PI, COGOArclength, orientation, datasetProjection);
+                          {
+                            if (!isHalfCircle)
+                            {
+                              newSegment = EllipticArcBuilderEx.CreateCircularArc(FirstSeg.EndCoordinate.ToMapPoint(), geometryChordDistance,
+                                geometryDirectionInPolarRadians + Math.PI, COGOArclength, orientation, datasetProjection);
+                            }
+                            else
+                            {//make a half circle from COGORadius and geometryChordDistance/geometryDirectionInPolarRadians
+                              //find the center of circular arc
+                              var ctrPoint = GeometryEngine.Instance.ConstructPointFromAngleDistance(FirstSeg.StartCoordinate.ToMapPoint(),
+                                geometryDirectionInPolarRadians, geometryChordDistance / 2.0);
+                              // calculate the interior point on the correct side using sign of cogo radius attribute
+                              var directionPlusMinus90 =
+                                orientation == ArcOrientation.ArcCounterClockwise ? geometryDirectionInPolarRadians + Math.PI / 2.0 : geometryDirectionInPolarRadians - Math.PI / 2.0;
+
+                              MapPoint qtrPoint = GeometryEngine.Instance.ConstructPointFromAngleDistance(ctrPoint, directionPlusMinus90, COGORadius);
+                              newSegment = EllipticArcBuilderEx.CreateCircularArc(LastSeg.EndCoordinate.ToMapPoint(),
+                                FirstSeg.StartCoordinate.ToMapPoint(), qtrPoint.Coordinate2D);
+                            }
+                          }
                           else
                           {
-                            //recompute the circular arc
+                            //recompute the circular arc for reversed geometry case
                             var revChord = LineBuilderEx.CreateLineSegment(newSegment.EndPoint, newSegment.StartPoint);
-                            newSegment = EllipticArcBuilderEx.CreateCircularArc(revChord.StartPoint, revChord.Length,revChord.Angle,
+                            newSegment = EllipticArcBuilderEx.CreateCircularArc(revChord.StartPoint, revChord.Length, revChord.Angle,
                               (newSegment as EllipticArcSegment).Length, orientation);
                           }
                         }
@@ -400,9 +422,27 @@ namespace CurvesAndLines
                       {
                         try
                         {
-                          if(!datasetInGCS)
-                            newSegment = EllipticArcBuilderEx.CreateCircularArc(FirstSeg.StartCoordinate.ToMapPoint(), geometryChordDistance,
-                              geometryDirectionInPolarRadians, COGOArclength, orientation, datasetProjection);
+                          if (!datasetInGCS)
+                          {
+                            if (!isHalfCircle)
+                            {
+                              newSegment = EllipticArcBuilderEx.CreateCircularArc(FirstSeg.StartCoordinate.ToMapPoint(), geometryChordDistance,
+                                geometryDirectionInPolarRadians, COGOArclength, orientation, datasetProjection);
+                            }
+                            else
+                            {//make a half circle from COGORadius and geometryChordDistance/geometryDirectionInPolarRadians
+                              //find the center of circular arc
+                              var ctrPoint = GeometryEngine.Instance.ConstructPointFromAngleDistance(FirstSeg.StartCoordinate.ToMapPoint(),
+                                geometryDirectionInPolarRadians, geometryChordDistance / 2.0);
+                              // calculate the interior point on the correct side using sign of cogo radius attribute
+                              var directionPlusMinus90 =
+                                orientation == ArcOrientation.ArcClockwise ? geometryDirectionInPolarRadians + Math.PI / 2.0 : geometryDirectionInPolarRadians - Math.PI / 2.0;
+
+                              MapPoint qtrPoint = GeometryEngine.Instance.ConstructPointFromAngleDistance(ctrPoint, directionPlusMinus90, COGORadius);
+                              newSegment = EllipticArcBuilderEx.CreateCircularArc(FirstSeg.StartCoordinate.ToMapPoint(),
+                                LastSeg.EndCoordinate.ToMapPoint(), qtrPoint.Coordinate2D);
+                            }
+                          }
                         }
                         catch
                         {

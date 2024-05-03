@@ -289,27 +289,41 @@ namespace CurvesAndLines
         bool bPerimeterCheck;
         if (theGeometry is Polyline)
         {
-          var polyline = PolylineBuilderEx.CreatePolyline(lstLineSegments);
-          if (!GeometryEngine.Instance.IsSimpleAsFeature(polyline))
-            polyline = GeometryEngine.Instance.SimplifyAsFeature(polyline) as Polyline;
-          bPartCountCheck = polyline.PartCount - partCount == 0;
-          bPerimeterCheck = polyline.Length / geomPerimLength > 0.9;
-          if(bPartCountCheck && bPerimeterCheck)
-            theGeometry = polyline;
-          else
+          try
+          { 
+            var polyline = PolylineBuilderEx.CreatePolyline(lstLineSegments);
+            if (!GeometryEngine.Instance.IsSimpleAsFeature(polyline))
+              polyline = GeometryEngine.Instance.SimplifyAsFeature(polyline) as Polyline;
+            bPartCountCheck = polyline.PartCount - partCount == 0;
+            bPerimeterCheck = polyline.Length / geomPerimLength > 0.9;
+            if(bPartCountCheck && bPerimeterCheck)
+              theGeometry = polyline;
+            else
+              return false;
+          }
+          catch
+          {
             return false;
+          }
         }
         else if (theGeometry is Polygon)
         {
-          var polygon = PolygonBuilderEx.CreatePolygon(lstLineSegments);
-          if (!GeometryEngine.Instance.IsSimpleAsFeature(polygon))
-            polygon = GeometryEngine.Instance.SimplifyAsFeature(polygon) as Polygon;
-          bPartCountCheck = polygon.PartCount - partCount == 0;
-          bPerimeterCheck = polygon.Length / geomPerimLength > 0.9;
-          if (bPartCountCheck && bPerimeterCheck)
-            theGeometry = polygon;
-          else
+          try
+          {
+            var polygon = PolygonBuilderEx.CreatePolygon(lstLineSegments);
+            if (!GeometryEngine.Instance.IsSimpleAsFeature(polygon))
+              polygon = GeometryEngine.Instance.SimplifyAsFeature(polygon) as Polygon;
+            bPartCountCheck = polygon.PartCount - partCount == 0;
+            bPerimeterCheck = polygon.Length / geomPerimLength > 0.9;
+            if (bPartCountCheck && bPerimeterCheck)
+              theGeometry = polygon;
+            else
+              return false;
+          }
+          catch
+          {//what cases cause CreatePolygon to fail?
             return false;
+          }
         }
       }
       return true;
@@ -519,8 +533,8 @@ namespace CurvesAndLines
       var mB = Math.Abs(Math.Sin(angBAC) * lineABVec.Magnitude * _metersPerUnitDataset);
       var mA = Math.Abs(Math.Cos(angBAC) * lineABVec.Magnitude * _metersPerUnitDataset);
 
-      if (mB == 0.0)
-        return true; //if perpendicular offset distance is zero, then segments are tangent
+      if (mB <= xyTol/1.1)
+        return true; //if perpendicular offset distance is near-zero, then segments are tangent
       
       dotProd = lineACUnitVec.DotProduct(lineBCUnitVec);
       var angBCA = Math.Acos(dotProd);
