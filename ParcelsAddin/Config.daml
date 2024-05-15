@@ -15,13 +15,13 @@
  */  
 -->
 <ArcGIS defaultAssembly="ParcelsAddin.dll" defaultNamespace="ParcelsAddin" xmlns="http://schemas.esri.com/DADF/Registry" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://schemas.esri.com/DADF/Registry file:///C:/Program%20Files/ArcGIS/Pro/bin/ArcGIS.Desktop.Framework.xsd">
-  <AddInInfo id="{d4508f6d-9f77-436e-a950-574f3af20720}" version="1.4.2" desktopVersion="3.0.36056">
+  <AddInInfo id="{d4508f6d-9f77-436e-a950-574f3af20720}" version="1.5" desktopVersion="3.0.36056">
     <Name>Parcel Utilities</Name>
     <Description>Parcel fabric tools</Description>
     <Image>Images\FabricAddinDesktop32.png</Image>
     <Author>Esri Parcel Team</Author>
     <Company>Esri</Company>
-    <Date>04/02/2024 06:00:00 PM</Date>
+    <Date>05/15/2024 1:00:00 PM</Date>
     <Subject>Editing, Geodatabase, Geometry</Subject>
     <!-- Note subject can be one or more of these topics:
                     Content, Framework, Editing, Geodatabase, Geometry, Geoprocessing, Layouts, Map Authoring, Map Exploration -->
@@ -31,7 +31,7 @@
       <!-- uncomment to have the control hosted on a separate tab-->
       <tabs>
         <tab id="ParcelsAddin_Tab1" caption="Utilities (Add-in)" condition="esri_editing_HasParcelFabricCondition" tabGroupID="esri_parcelfabric_CoreTabGroup" keytip="U">
-					<group refID="ParcelsAddin_Group1" />
+          <group refID="ParcelsAddin_Group1" />
           <group refID="ParcelsAddin_Group2" />
           <group refID="ParcelsAddin_Group3" />
           <group refID="ParcelsAddin_Group4" />
@@ -47,6 +47,7 @@
           <button refID="ParcelsAddin_EditOperationRedo" size="large" />
           <button refID="esri_editing_SaveEditsBtn" size="middle" />
           <button refID="esri_editing_DiscardEditsBtn" size="middle" />
+          <!--<button refID="ParcelsAddin_ConfigureParcelReport" size="large" />-->
         </group>
         <group id="ParcelsAddin_Group2" caption="Selection" appearsOnAddInTab="false" keytip="S">
           <!-- host controls within groups -->
@@ -66,7 +67,7 @@
           <tool refID="esri_editing_measureDirectionDistanceTool" size="small" />
           <tool refID="esri_editing_measureOffsetTool" size="small" />
           <tool refID="esri_editing_measureAngleTool" size="small" />
-          <tool refID="ParcelsAddin_ParcelReportTool" size="large" />
+					<splitButton refID="ParcelsAddin_ParcelReportToolSplitButton" />
         </group>
         <group id="ParcelsAddin_Group5" caption="Files" appearsOnAddInTab="false" keytip="F">
           <!-- host controls within groups -->
@@ -107,7 +108,10 @@
           <tooltip heading="Update COGO">Update direction, distance, radius and arclength for the selected lines.<disabledText /></tooltip>
         </button>
         <button id="ParcelsAddin_ConfigureUpdateCOGO" caption="Configure..." className="ConfigureUpdateCOGO" loadOnClick="true" smallImage="pack://application:,,,/ArcGIS.Desktop.Resources;component/Images/CogWheel16.png" largeImage="pack://application:,,,/ArcGIS.Desktop.Resources;component/Images/CogWheel32.png" keytip="C">
-          <tooltip heading="Tooltip Heading">Choose tolerances and coordinate system.<disabledText /></tooltip>
+          <tooltip heading="Configure Update COGO">Choose update tolerances.<disabledText /></tooltip>
+        </button>
+        <button id="ParcelsAddin_ConfigureParcelReport" caption="Configure..." className="ConfigureParcelReport" loadOnClick="true" smallImage="pack://application:,,,/ArcGIS.Desktop.Resources;component/Images/CogWheel16.png" largeImage="pack://application:,,,/ArcGIS.Desktop.Resources;component/Images/CogWheel32.png" keytip="P">
+          <tooltip heading="Configure Parcel Report Tool">Choose units for the Parcel Report tool.<disabledText /></tooltip>
         </button>
       </controls>
       <splitButtons>
@@ -119,6 +123,10 @@
           <button refID="ParcelsAddin_UpdateCOGO" />
           <button refID="ParcelsAddin_ConfigureUpdateCOGO" />
         </splitButton>
+				<splitButton id="ParcelsAddin_ParcelReportToolSplitButton">
+					<button refID="ParcelsAddin_ParcelReportTool" />
+					<button refID="ParcelsAddin_ConfigureParcelReport" />
+				</splitButton>
       </splitButtons>
       <menus>
         <menu id="ParcelsAddin_ExportMenu" caption="Export" smallImage="pack://application:,,,/ArcGIS.Desktop.Resources;component/Images/ExportNoteIntel16.png" largeImage="pack://application:,,,/ArcGIS.Desktop.Resources;component/Images/ExportNoteIntel32.png">

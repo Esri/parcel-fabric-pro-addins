@@ -34,7 +34,6 @@ namespace ParcelsAddin
       }
     }
     #endregion
-    private double _backstageMetersPerDistanceUnit;
     public List<string> SpatialReferenceSourceList { get; set; }
     public string SpatialReferenceSource { get; set; }
     public string DistanceUnitAbbreviation { get; set; }

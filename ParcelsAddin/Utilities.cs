@@ -47,6 +47,17 @@ namespace ParcelsAddin
   }
   internal class COGOUtils
   {
+
+    internal static double GetMetersPerUnitFromProject()
+    {
+      double conversionFactor = 1.0;
+      try
+      {
+        DisplayUnitFormat distanceFormat = DisplayUnitFormats.Instance.GetDefaultProjectUnitFormat(UnitFormatType.Distance);
+        conversionFactor = distanceFormat.MeasurementUnit.ConversionFactor;
+      } catch {; }
+      return conversionFactor;
+    }
     internal static string ConvertNorthAzimuthDecimalDegreesToDisplayUnit(double InDirection,
       DisplayUnitFormat incomingDirectionFormat, bool ConvertDashesToDMSSymbols = true)
     {
@@ -91,6 +102,55 @@ namespace ParcelsAddin
       var dir = AngConv.ConvertToString(InDirection, iRounding, ConvDef).Replace(" ", "");
       if (ConvertDashesToDMSSymbols)
       {
+        dir = PadMinutesSeconds(dir);
+        dir = FormatDirectionDashesToDegMinSecSymbols(dir);
+        if (dirUnitOut == ArcGIS.Core.SystemCore.DirectionUnits.Gons)
+          dir = dir.Replace("°", "g");
+      }
+      return dir;
+    }
+
+    internal static string ConvertNorthAzimuthDecimalDegreesToDirectionType(double InDirection,
+      ArcGIS.Core.SystemCore.DirectionType incomingDirectionType, DisplayUnitFormat incomingDirectionFormat, bool ConvertDashesToDMSSymbols = true)
+    {
+      //this routine allows overriding the backstage direction type for a specific tool, and with a user spcificed choice, but
+      //adopts the angular units and precision of the backstage direction unit
+      //(a hybrid appraoch)
+
+      if (incomingDirectionFormat == null)
+        return "";
+
+      var dirUnitIn = ArcGIS.Core.SystemCore.DirectionUnits.DecimalDegrees;
+      var dirTypeIn = ArcGIS.Core.SystemCore.DirectionType.NorthAzimuth;
+
+      var dirTypeOut = incomingDirectionType;
+
+      var directionUnitFormat = incomingDirectionFormat.UnitFormat as CIMDirectionFormat;
+      int iRounding = directionUnitFormat.DecimalPlaces;
+
+      var angleMeasurementUnit = incomingDirectionFormat.MeasurementUnit;
+      var dirUnitOut = ArcGIS.Core.SystemCore.DirectionUnits.Radians;
+      if (angleMeasurementUnit.FactoryCode == 909004)//Degrees Minutes Seconds
+        dirUnitOut = ArcGIS.Core.SystemCore.DirectionUnits.DegreesMinutesSeconds;
+      else if (angleMeasurementUnit.FactoryCode == 9102)//Decimal Degrees
+        dirUnitOut = ArcGIS.Core.SystemCore.DirectionUnits.DecimalDegrees;
+      else if (angleMeasurementUnit.FactoryCode == 9105)//Gradians
+        dirUnitOut = ArcGIS.Core.SystemCore.DirectionUnits.Gradians;
+      else if (angleMeasurementUnit.FactoryCode == 9106)//Gons
+        dirUnitOut = ArcGIS.Core.SystemCore.DirectionUnits.Gons;
+
+      var AngConv = DirectionUnitFormatConversion.Instance;
+      var ConvDef = new ConversionDefinition()
+      {
+        DirectionTypeIn = dirTypeIn,
+        DirectionUnitsIn = dirUnitIn,
+        DirectionTypeOut = dirTypeOut,
+        DirectionUnitsOut = dirUnitOut
+      };
+      var dir = AngConv.ConvertToString(InDirection, iRounding, ConvDef).Replace(" ", "");
+      if (ConvertDashesToDMSSymbols)
+      {
+        dir = PadMinutesSeconds(dir);
         dir = FormatDirectionDashesToDegMinSecSymbols(dir);
         if (dirUnitOut == ArcGIS.Core.SystemCore.DirectionUnits.Gons)
           dir = dir.Replace("°", "g");
@@ -205,14 +265,19 @@ namespace ParcelsAddin
       try
       {
         var fLyrList = myActiveMapView?.Map?.GetLayersAsFlattenedList()?.OfType<FeatureLayer>()?.
-          Where(l => l != null).Where(l => (l as Layer).ConnectionStatus != ConnectionStatus.Broken).
-          Where(l => l.GetFeatureClass().GetDefinition().IsCOGOEnabled());
+          Where(l => l != null).Where(l => (l as Layer).ConnectionStatus != ConnectionStatus.Broken);
 
         if (fLyrList == null) return false;
 
         foreach (var fLyr in fLyrList)
         {
-          if (fLyr.SelectionCount > 0)
+          bool isCOGOEnabled = false;
+          try 
+          {
+            isCOGOEnabled = fLyr.GetFeatureClass().GetDefinition().IsCOGOEnabled();
+          } catch { continue; }
+
+          if (fLyr.SelectionCount > 0 && isCOGOEnabled)
             featureLayer.Add(fLyr);
         }
       }
@@ -301,7 +366,64 @@ namespace ParcelsAddin
       return new string[2] { sDirectionType, sDirectionUnit };
     }
 
-    internal static List<Coordinate2D> CompassRuleAdjust(List<Coordinate3D> TraverseCourses, Coordinate2D StartPoint, Coordinate2D EndPoint,
+    internal static bool ComputeCircularArcParameters(List<Coordinate3D> TraverseCourses, List<double> RadiusList, List<double> ArclengthList, 
+      out List<double> listRadialDirection, out List<double> listTangentDirection, out List<double> listChordDistance,out List<double> listCentralAngle)
+    {
+      listRadialDirection = new List<double>();
+      listTangentDirection = new List<double>();
+      listChordDistance = new List<double>();
+      listCentralAngle = new List<double>();
+      try
+      {
+        for (int i = 0; i < TraverseCourses.Count; i++)
+        {
+          if (RadiusList[i] == 0.0 | ArclengthList[i] == 0.0)
+          {
+            listRadialDirection.Add(-999.9);
+            listTangentDirection.Add(-999.9);
+            listChordDistance.Add(-999.9);
+            listCentralAngle.Add(-999.9);
+          }
+          else
+          {
+            Coordinate3D vec = TraverseCourses[i];
+            var chordDirection = vec.Azimuth * 180.0 / Math.PI;
+            var arcLength = ArclengthList[i];
+            var radius = RadiusList[i];
+            var delta = arcLength / radius;
+            var chordDistance = 2.0 * Math.Abs(radius) * Math.Sin(Math.Abs(delta) / 2.0);
+
+            var isCCW = radius < 0.0;
+            var isMajor = delta > Math.PI * 2.0;
+            var tangentDirection = chordDirection - (delta / 2.0 * 180.0 / Math.PI);
+            var radialDirection = isCCW ? tangentDirection - 90.0 : tangentDirection + 90.0;
+
+            ConversionDefinition convDef = new()
+            {
+              DirectionTypeIn = ArcGIS.Core.SystemCore.DirectionType.NorthAzimuth,
+              DirectionTypeOut = ArcGIS.Core.SystemCore.DirectionType.NorthAzimuth,
+              DirectionUnitsIn = ArcGIS.Core.SystemCore.DirectionUnits.DecimalDegrees,
+              DirectionUnitsOut = ArcGIS.Core.SystemCore.DirectionUnits.DecimalDegrees
+            };
+            tangentDirection=DirectionUnitFormatConversion.Instance.ConvertToDouble(tangentDirection, convDef);
+            radialDirection= DirectionUnitFormatConversion.Instance.ConvertToDouble(radialDirection, convDef);
+
+            listRadialDirection.Add(radialDirection);
+            listTangentDirection.Add(tangentDirection);
+            listChordDistance.Add(chordDistance);
+            listCentralAngle.Add(delta);
+
+          }
+        }
+        return true;
+      }
+      catch
+      { 
+        return false; 
+      }
+    }
+
+  internal static List<Coordinate2D> CompassRuleAdjust(List<Coordinate3D> TraverseCourses, Coordinate2D StartPoint, Coordinate2D EndPoint,
       List<double> RadiusList, List<double> ArclengthList, List<bool> IsMajorList,
        out Coordinate2D MiscloseVector, out double MiscloseRatio, out double COGOArea)
     {
@@ -440,6 +562,9 @@ namespace ParcelsAddin
       try
       {
         Angle = Angle.Replace(" ", "");
+        Angle = Angle.ToUpper().Trim();
+
+        int iQuadrantBearingOffset = (Angle.EndsWith("E") || Angle.EndsWith("W")) ? 1 : 0;
 
         int i = Angle.LastIndexOf('-');
         int j = Angle.IndexOf('-');
@@ -447,8 +572,8 @@ namespace ParcelsAddin
         if (i - j == 2)
           Angle = Angle.Insert(j + 1, "0");
 
-        i = Angle.LastIndexOf('-');//get it again
-        if (Angle.Length - 2 == i)
+        i = Angle.LastIndexOf('-'); //get it again
+        if (Angle.Length - 2 == i + iQuadrantBearingOffset)
           Angle = Angle.Insert(i + 1, "0");
 
       }

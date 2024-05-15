@@ -1,4 +1,4 @@
-﻿/* Copyright 2023 Esri
+﻿/* Copyright 2024 Esri
  *
  * Licensed under the Apache License Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -54,6 +54,7 @@ namespace ParcelsAddin
     private readonly Dictionary<FeatureLayer, List<long>> dictLyr2IdsList = new ();
 
     private readonly ParcelReportViewModel _VM = new ();
+    private readonly ConfigureParcelReportViewModel _configVM = new();
 
     protected override Task OnToolActivateAsync(bool active)
     {
@@ -101,20 +102,97 @@ namespace ParcelsAddin
 
     protected override Task<bool> OnSketchCompleteAsync(Geometry geometry)
     {
+      double _distanceMetersPerLinearUnit = 1.0; //default to meters
+      double _sqMetersPerAreaUnit = 1.0; //default to metric
+
+      string _distanceUnitName = "meter";
+      string areaUnitName = "sq.meter";
+
+      ArcGIS.Core.SystemCore.DirectionType _directionType = ArcGIS.Core.SystemCore.DirectionType.NorthAzimuth;
+
+      bool useRadialDirection = false;
+      bool useTangentDirection = false;
+      bool useChordDirection = true;
+
+      bool useProjectDirectionType = true;
+      bool useProjectDistanceUnit = false;
+      bool useDatasetDistanceUnit = true;
+
+      bool useDMSSymbol = true;
+      bool useDashes = false;
+      bool useSpaces = false;
+
+      bool useCommas = true;
+      bool useColumns = false;
+
+      int iDistPrec = 2;
+      int iAreaPrec = 0;
+
+      try
+      {
+        string sParamString = ConfigurationsLastUsed.Default["ConfigureParcelReportLastUsedParams"] as string;
+        string[] sParams = sParamString.Split('|');
+        //"<Project Units>|directiontypecode|<Dataset Units>|Chord|Radius And Arclength|Symbol [dd°mm'ss"]|Comma-separated"
+        //"Symbols [dd°mm'ss\"]" , "Dashes [dd-mm-ss]", "Spaces [dd mm ss]"
+        _ = long.TryParse(sParams[1], out long directionTypeCode);
+        _distanceUnitName = sParams[2];
+        _configVM.ConfigureParcelReportModel.DistanceUnitName = _distanceUnitName;
+        _distanceMetersPerLinearUnit = _configVM.ConfigureParcelReportModel.MetersPerLinearUnit;
+        iDistPrec = _configVM.ConfigureParcelReportModel.DistanceUnitPrecision;
+
+        useProjectDirectionType = sParams[0].ToLower()== "<project units>";
+        useProjectDistanceUnit = sParams[2].ToLower() == "<project units>";
+        useDatasetDistanceUnit = sParams[2].ToLower() == "<dataset units>";
+
+        useRadialDirection = sParams[3].ToLower() == "radial";
+        useTangentDirection = sParams[3].ToLower() == "tangent";
+        useChordDirection = sParams[3].ToLower() == "chord";
+
+        useSpaces = sParams[5].ToLower() == "spaces [dd mm ss]";
+        useDashes = sParams[5].ToLower() == "dashes [dd-mm-ss]";
+        useDMSSymbol = sParams[5].ToLower() == "symbols [dd°mm'ss\"]";
+
+        useColumns = sParams[6].ToLower() == "columns";
+        useCommas = sParams[6].ToLower() == "comma-separated";
+
+        if (!useProjectDirectionType)
+          _directionType = (ArcGIS.Core.SystemCore.DirectionType)directionTypeCode;
+      }
+      catch
+      {; }
+
       dictLyr2IdsList.Clear();
       string sReportResult = "";
+
       var ParcelReportDlg = new ParcelReportDialog
       {
         Owner = FrameworkApplication.Current.MainWindow,
         DataContext = _VM
       };
       var insp = new ArcGIS.Desktop.Editing.Attributes.Inspector();
-      QueuedTask.Run(async () =>
+      _ = QueuedTask.Run(async () =>
       {
         //get the direction format and units from the backstage default settings
         _dialogDirectionUnit =
           DisplayUnitFormats.Instance.GetDefaultProjectUnitFormat(UnitFormatType.Direction);
 
+        string sProjectDistanceUnitName = "";
+        if (useProjectDistanceUnit)
+        {
+          _distanceMetersPerLinearUnit = COGOUtils.GetMetersPerUnitFromProject();
+          sProjectDistanceUnitName = DisplayUnitFormats.Instance.GetDefaultProjectUnitFormat(UnitFormatType.Distance).MeasurementUnit.Name;
+          var distUnitFormat = DisplayUnitFormats.Instance.GetDefaultProjectUnitFormat(UnitFormatType.Distance).UnitFormat as CIMNumericFormat;
+          iDistPrec = distUnitFormat.RoundingValue;
+
+          //for areas use the project area unit when the distance units are in project units
+          _sqMetersPerAreaUnit = DisplayUnitFormats.Instance.GetDefaultProjectUnitFormat(UnitFormatType.Area).MeasurementUnit.ConversionFactor;
+          areaUnitName = DisplayUnitFormats.Instance.GetDefaultProjectUnitFormat(UnitFormatType.Area).MeasurementUnit.Name;
+          var areaUnitFormat = DisplayUnitFormats.Instance.GetDefaultProjectUnitFormat(UnitFormatType.Area).UnitFormat as CIMNumericFormat;
+          iAreaPrec = areaUnitFormat.RoundingValue;
+
+        }
+
+        string sDistPrecision = "F" + iDistPrec.ToString();
         // define the spatial query filter
         var spatialQuery = new SpatialQueryFilter()
         {
@@ -173,14 +251,14 @@ namespace ParcelsAddin
             }
             catch(Exception ex)
             {
-              sReportResult += "-----------------------" + Environment.NewLine;
+              sReportResult += "------------------------------------" + Environment.NewLine;
               sReportResult += "Layer: " + featlyr.Key.Name + Environment.NewLine;
               if (sName== String.Empty || sName == null)
                 sReportResult += "Name: -- " + "(oid: " + oid.ToString() + ")" + Environment.NewLine;
               else
                 sReportResult += "Name: " + sName + Environment.NewLine;
               sReportResult += "No lines found for parcel polygon." + Environment.NewLine;
-              if (ex.Message != String.Empty)
+              if (ex.Message != String.Empty && ex.Message!= "Value cannot be null. (Parameter 'source')")
                 sReportResult += ex.Message + Environment.NewLine;
               continue;
             }
@@ -199,19 +277,22 @@ namespace ParcelsAddin
                 radius = (double)radiusObj;
               radiusList.Add(radius);
             }
-              
+
             var arcLengthList = new List<double>();
             foreach (var arcLengthObj in parcelTraverseInfo[4] as List<object>)
             {
               double arcLength = 0.0;
               if (arcLengthObj != null)
+              {
                 arcLength = (double)arcLengthObj;
+              }
               arcLengthList.Add(arcLength);
             }
 
             var isMajorList = parcelTraverseInfo[5] as List<bool>;
+
             string sParcelName = 
-            sReportResult += "-----------------------" + Environment.NewLine;
+            sReportResult += "------------------------------------" + Environment.NewLine;
             sReportResult += "Layer: " + featlyr.Key.Name + Environment.NewLine;
             if (sName == String.Empty || sName == null)
               sReportResult += "Name: -- " + "(oid: " + oid.ToString() + ")" + Environment.NewLine;
@@ -224,22 +305,70 @@ namespace ParcelsAddin
               var traverseCourses = new List<Coordinate3D>();
               foreach (Coordinate3D vec in parcelTraverseInfo[0] as List<object>)
                 traverseCourses.Add(vec);
+
               var result = COGOUtils.CompassRuleAdjust(traverseCourses, startPoint, startPoint, radiusList, arcLengthList, isMajorList,
                 out Coordinate2D miscloseVector, out double dRatio, out double cogoArea);
+
+              bool bResult = COGOUtils.ComputeCircularArcParameters(traverseCourses, radiusList, arcLengthList,
+                out List<double> radialDirectionList, out List<double> tangentDirectionList,
+                out List<double> chordDistanceList, out List<double> centralAngleList);
+
+              var miscCloseDistance = miscloseVector.Magnitude;
+              var miscCloseDistanceInMeters = miscCloseDistance * _datasetMetersPerUnit;
+              var cogoAreaInSqM = cogoArea * _datasetMetersPerUnit * _datasetMetersPerUnit;
+              if (!useDatasetDistanceUnit)
+              {
+                miscCloseDistance = miscCloseDistanceInMeters / _distanceMetersPerLinearUnit;
+                cogoArea = cogoAreaInSqM / (_datasetMetersPerUnit * _datasetMetersPerUnit);
+              }
+
+              if (useProjectDistanceUnit)
+              //for areas use the project area unit when the distance units are in project units
+                cogoArea /= _sqMetersPerAreaUnit;
+              
+              sReportResult += "COGO Area: " + cogoArea.ToString("F"+ iAreaPrec.ToString()) + Environment.NewLine;
               sReportResult += "Misclose ratio: 1:" + dRatio.ToString("F0") + Environment.NewLine;
-              sReportResult += "COGO Area: " + cogoArea.ToString("F0") + Environment.NewLine;
-              sReportResult += "Misclose distance: " + miscloseVector.Magnitude.ToString("F2") + Environment.NewLine;
+              sReportResult += "Misclose distance: " + miscCloseDistance.ToString(sDistPrecision) + Environment.NewLine;
+
               sReportResult += "Clockwise lines:" + Environment.NewLine;
               var idx = 0;
               foreach (var vec in traverseCourses)
               {
-                var direction = COGOUtils.ConvertNorthAzimuthDecimalDegreesToDisplayUnit(vec.Azimuth * 180.0 / Math.PI, _dialogDirectionUnit);
+
+                double directionParameter = vec.Azimuth * 180.0 / Math.PI;
+                bool isCircularArc = radiusList[idx] != 0.0 && arcLengthList[idx] != 0.0;
+                if (useTangentDirection && isCircularArc)
+                  directionParameter = tangentDirectionList[idx];
+                else if(useRadialDirection && isCircularArc)
+                  directionParameter = radialDirectionList[idx];
+
+                var direction = COGOUtils.ConvertNorthAzimuthDecimalDegreesToDisplayUnit(directionParameter, _dialogDirectionUnit,
+                    useDMSSymbol); //default chord direction for circular arcs
+
+                 if (!useProjectDirectionType)
+                    direction = COGOUtils.ConvertNorthAzimuthDecimalDegreesToDirectionType(directionParameter, _directionType,
+                       _dialogDirectionUnit, useDMSSymbol);
+
+                if (useSpaces)
+                  direction = direction.Replace("-", " ").Replace("°", " ").Replace("'", " ").Replace("\"", "");
+
                 if (radiusList[idx] == 0.0)
-                  sReportResult += "  " + direction + ", " + vec.Magnitude.ToString("F2") + Environment.NewLine;
+                {
+                  if (useCommas)
+                    sReportResult += "  " + direction + ", " + vec.Magnitude.ToString(sDistPrecision) + Environment.NewLine;
+                  else
+                    sReportResult += $"{" ",-1}{direction,15}\t{vec.Magnitude.ToString(sDistPrecision),10}" + Environment.NewLine;
+                }
                 else
                 {
-                  sReportResult += "  " + direction + ", " + vec.Magnitude.ToString("F2") +
-                    ", Radius: " + radiusList[idx].ToString("F2") + ", Arclength: " + arcLengthList[idx].ToString("F2") + Environment.NewLine;
+                  if (useCommas)
+                    sReportResult += "  " + direction + ", " + vec.Magnitude.ToString(sDistPrecision) +
+                      ", Radius: " + radiusList[idx].ToString(sDistPrecision) + ", Arclength: " +
+                      arcLengthList[idx].ToString(sDistPrecision) + Environment.NewLine;
+                  else
+                    sReportResult += $"{" ",-1}{direction,15}\t{vec.Magnitude.ToString(sDistPrecision),10}" +
+                    $"{" ",-1}{radiusList[idx].ToString(sDistPrecision),10} (r)" +
+                    $"{" ",-1}{arcLengthList[idx].ToString(sDistPrecision),10} (al)" + Environment.NewLine;
                 }
                 idx++;
               }
@@ -267,7 +396,14 @@ namespace ParcelsAddin
                 if (dir != null)
                 {
                   var direction = (double)dir;
-                  var sVal = COGOUtils.ConvertNorthAzimuthDecimalDegreesToDisplayUnit(direction, _dialogDirectionUnit);
+                  var sVal = COGOUtils.ConvertNorthAzimuthDecimalDegreesToDisplayUnit(direction, _dialogDirectionUnit, useDMSSymbol);
+                  if (!useProjectDirectionType)
+                    sVal = COGOUtils.ConvertNorthAzimuthDecimalDegreesToDirectionType(direction, _directionType,
+                       _dialogDirectionUnit, useDMSSymbol);
+
+                  if (useSpaces)
+                    sVal = sVal.Replace("-", " ").Replace("°", " ").Replace("'", " ").Replace("\"", "");
+
                   directionStr[idx++] = sVal;
                 }
                 else
@@ -279,7 +415,10 @@ namespace ParcelsAddin
                 if (dist != null)
                 {
                   var distance = (double)dist;
-                  distanceStr[idx++] = distance.ToString("F2");
+                  var distanceInMeters = distance * _datasetMetersPerUnit;
+                  if (!useDatasetDistanceUnit)
+                    distance = distanceInMeters / _distanceMetersPerLinearUnit;
+                  distanceStr[idx++] = distance.ToString(sDistPrecision);
                 }
                 else
                   distanceStr[idx++] = "--";
@@ -290,7 +429,10 @@ namespace ParcelsAddin
                 if (rad != null)
                 {
                   var radius = (double)rad;
-                  radiusStr[idx++] = radius.ToString("F2");
+                  var radiusInMeters = radius * _datasetMetersPerUnit;
+                  if (!useDatasetDistanceUnit)
+                    radius = radiusInMeters / _distanceMetersPerLinearUnit;
+                  radiusStr[idx++] = radius.ToString(sDistPrecision);
                 }
                 else
                   radiusStr[idx++] = "--";
@@ -301,7 +443,10 @@ namespace ParcelsAddin
                 if (arc != null)
                 {
                   var arclength = (double)arc;
-                  arcLengthStr[idx++] = arclength.ToString("F2");
+                  var arclengthInMeters = arclength * _datasetMetersPerUnit;
+                  if (!useDatasetDistanceUnit)
+                    arclength = arclengthInMeters / _distanceMetersPerLinearUnit;
+                  arcLengthStr[idx++] = arclength.ToString(sDistPrecision);
                 }
                 else
                   arcLengthStr[idx++] = "--";
@@ -312,21 +457,41 @@ namespace ParcelsAddin
               foreach (string dir in directionStr)
               {
                 if (radiusStr[idx] == "--" && arcLengthStr[idx] == "--")
-                  sReportResult += "  " + dir + ", " + distanceStr[idx] + Environment.NewLine;
+                {
+                  if(useCommas)
+                    sReportResult += "  " + dir + ", " + distanceStr[idx] + Environment.NewLine;
+                  else
+                    sReportResult += $"{" ",-1}{dir,15}\t{distanceStr[idx],10}" + Environment.NewLine;
+                }
                 else if (radiusStr[idx] != "--" && arcLengthStr[idx] == "--")
                 {
-                  sReportResult += "  " + dir + ", Radius: " + radiusStr[idx] +
+                  if (useCommas)
+                    sReportResult += "  " + dir + ", Radius: " + radiusStr[idx] +
                         ", " + arcLengthStr[idx] + Environment.NewLine;
+                  else
+                    sReportResult += $"{" ",-1}{dir,15}\t{"--",10}" +
+                    $"{" ",-1}{radiusStr[idx],10} (r)" +
+                    $"{" ",-1}{arcLengthStr,10} (al)" + Environment.NewLine;
                 }
                 else if (radiusStr[idx] == "--" && arcLengthStr[idx] != "--")
                 {
-                  sReportResult += "  " + dir + ", " + radiusStr[idx] +
+                  if (useCommas)
+                    sReportResult += "  " + dir + ", " + radiusStr[idx] +
                         ", ArcLength: " + arcLengthStr[idx] + Environment.NewLine;
+                  else
+                    sReportResult += $"{" ",-1}{dir,15}\t{"--",10}" +
+                    $"{" ",-1}{radiusStr[idx],10} (r)" +
+                    $"{" ",-1}{arcLengthStr,10} (al)" + Environment.NewLine;
                 }
                 else if (radiusStr[idx] != "--" && arcLengthStr[idx] != "--")
                 {
-                  sReportResult += "  " + dir + ", Radius: " + radiusStr[idx] +
+                  if (useCommas)
+                    sReportResult += "  " + dir + ", Radius: " + radiusStr[idx] +
                         ", ArcLength: " + arcLengthStr[idx] + Environment.NewLine;
+                  else
+                    sReportResult += $"{" ",-1}{dir,15}\t{"--",10}" +
+                    $"{" ",-1}{radiusStr[idx],10} (r)" +
+                    $"{" ",-1}{arcLengthStr[idx],10} (al)" + Environment.NewLine;
                 }
                 idx++;
               }
@@ -334,7 +499,14 @@ namespace ParcelsAddin
             }
           }
         }
+        
         string sReportUnits = "Units: " + _datasetUnitName + ", sq." + _datasetUnitName + Environment.NewLine;
+        if(!useProjectDistanceUnit && !useDatasetDistanceUnit)
+          sReportUnits = "Units: " + _distanceUnitName.ToLower() + ", sq." + _distanceUnitName.ToLower() + Environment.NewLine;
+        
+        if(useProjectDistanceUnit)
+          sReportUnits = "Units: " + sProjectDistanceUnitName.ToLower() + ", " + areaUnitName.ToLower() + Environment.NewLine;
+
         if (sReportResult.Trim().Length == 0)
           _VM.ParcelReport.ParcelReportText = "No parcels found. Please click on visible parcel polygons.";
         else
