@@ -36,11 +36,11 @@ namespace ParcelsAddin
 {
   internal class ConfigureAreaUnits : Button
   {
-    private ConfigureAreaUnitsViewModel _VM = new ConfigureAreaUnitsViewModel();
+    private readonly ConfigureAreaUnitsViewModel _VM = new();
     protected override void OnClick()
     {
       #region Collect parameters from dialog and save to settings
-      var ConfigureAreaUnitsInput = new ConfigureAreaUnitsDialog();
+      ConfigureAreaUnitsDialog ConfigureAreaUnitsInput = new();
       ConfigureAreaUnitsInput.Owner = FrameworkApplication.Current.MainWindow;
       ConfigureAreaUnitsInput.DataContext = _VM;
       

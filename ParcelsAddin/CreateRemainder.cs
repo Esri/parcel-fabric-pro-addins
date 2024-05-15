@@ -272,7 +272,6 @@ namespace ParcelsAddin
     internal static bool OrthogonalLinesAtBends (Geometry theGeometry, double Distance, out List<Geometry> Lines)
     {
       Lines = new();    
-      bool bSegmentsChanged = false;
       if (theGeometry == null)
         return false;
 

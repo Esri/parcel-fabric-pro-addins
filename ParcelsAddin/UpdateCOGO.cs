@@ -42,7 +42,7 @@ namespace ParcelsAddin
     {
       bool isControlledByFabric = false;
       CancelableProgressorSource cps = new("Update COGO Attributes", "Canceled");
-      string reportMessage = await QueuedTask.Run(async () =>
+      string reportMessage = await QueuedTask.Run( () =>
       {
         try
         {
