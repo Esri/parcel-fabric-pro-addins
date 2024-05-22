@@ -319,7 +319,7 @@ namespace ParcelsAddin
               if (!useDatasetDistanceUnit)
               {
                 miscCloseDistance = miscCloseDistanceInMeters / _distanceMetersPerLinearUnit;
-                cogoArea = cogoAreaInSqM / (_datasetMetersPerUnit * _datasetMetersPerUnit);
+                cogoArea = cogoAreaInSqM / (_distanceMetersPerLinearUnit * _distanceMetersPerLinearUnit);
               }
 
               if (useProjectDistanceUnit)
@@ -352,23 +352,39 @@ namespace ParcelsAddin
                 if (useSpaces)
                   direction = direction.Replace("-", " ").Replace("°", " ").Replace("'", " ").Replace("\"", "");
 
+                var distance = vec.Magnitude;
+                var distanceInMeters = distance * _datasetMetersPerUnit;
+                if (!useDatasetDistanceUnit)
+                  distance = distanceInMeters / _distanceMetersPerLinearUnit;
+
+
                 if (radiusList[idx] == 0.0)
                 {
                   if (useCommas)
-                    sReportResult += "  " + direction + ", " + vec.Magnitude.ToString(sDistPrecision) + Environment.NewLine;
+                    sReportResult += "  " + direction + ", " + distance.ToString(sDistPrecision) + Environment.NewLine;
                   else
-                    sReportResult += $"{" ",-1}{direction,15}\t{vec.Magnitude.ToString(sDistPrecision),10}" + Environment.NewLine;
+                    sReportResult += $"{" ",-1}{direction,15}\t{distance.ToString(sDistPrecision),10}" + Environment.NewLine;
                 }
                 else
                 {
+                  var radius = radiusList[idx];
+                  var arclength = arcLengthList[idx];
+                  var radiusInMeters = radius * _datasetMetersPerUnit;
+                  var arclengthInMeters = arclength * _datasetMetersPerUnit;
+                  if (!useDatasetDistanceUnit)
+                  {
+                    radius = radiusInMeters / _distanceMetersPerLinearUnit;
+                    arclength=arclengthInMeters / _distanceMetersPerLinearUnit;
+                  }
+
                   if (useCommas)
-                    sReportResult += "  " + direction + ", " + vec.Magnitude.ToString(sDistPrecision) +
-                      ", Radius: " + radiusList[idx].ToString(sDistPrecision) + ", Arclength: " +
-                      arcLengthList[idx].ToString(sDistPrecision) + Environment.NewLine;
+                    sReportResult += "  " + direction + ", " + distance.ToString(sDistPrecision) +
+                      ", Radius: " + radius.ToString(sDistPrecision) + ", Arclength: " +
+                      arclength.ToString(sDistPrecision) + Environment.NewLine;
                   else
-                    sReportResult += $"{" ",-1}{direction,15}\t{vec.Magnitude.ToString(sDistPrecision),10}" +
-                    $"{" ",-1}{radiusList[idx].ToString(sDistPrecision),10} (r)" +
-                    $"{" ",-1}{arcLengthList[idx].ToString(sDistPrecision),10} (al)" + Environment.NewLine;
+                    sReportResult += $"{" ",-1}{direction,15}\t{distance.ToString(sDistPrecision),10}" +
+                    $"{" ",-1}{radius.ToString(sDistPrecision),10} (r)" +
+                    $"{" ",-1}{arclength.ToString(sDistPrecision),10} (al)" + Environment.NewLine;
                 }
                 idx++;
               }
@@ -471,7 +487,7 @@ namespace ParcelsAddin
                   else
                     sReportResult += $"{" ",-1}{dir,15}\t{"--",10}" +
                     $"{" ",-1}{radiusStr[idx],10} (r)" +
-                    $"{" ",-1}{arcLengthStr,10} (al)" + Environment.NewLine;
+                    $"{" ",-1}{arcLengthStr[idx],10} (al)" + Environment.NewLine;
                 }
                 else if (radiusStr[idx] == "--" && arcLengthStr[idx] != "--")
                 {
@@ -481,7 +497,7 @@ namespace ParcelsAddin
                   else
                     sReportResult += $"{" ",-1}{dir,15}\t{"--",10}" +
                     $"{" ",-1}{radiusStr[idx],10} (r)" +
-                    $"{" ",-1}{arcLengthStr,10} (al)" + Environment.NewLine;
+                    $"{" ",-1}{arcLengthStr[idx],10} (al)" + Environment.NewLine;
                 }
                 else if (radiusStr[idx] != "--" && arcLengthStr[idx] != "--")
                 {
