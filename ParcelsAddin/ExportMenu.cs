@@ -285,9 +285,6 @@ namespace ParcelsAddin
           var recordsLyr = myParcelFabricLayer.GetRecordsLayerAsync().Result.FirstOrDefault();
           if (recordsLyr == null)
             return "There is no records layer in the map.";
-          //...confirm we're not editing default version geodatabase.
-          if (ParcelUtils.IsDefaultVersionOnFeatureService(recordsLyr))
-            return "Editing on the default version is not available.";
 
           string distUnit = "Meters";
           string distUnitSuff = " m";
