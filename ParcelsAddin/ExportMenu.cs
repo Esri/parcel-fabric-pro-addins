@@ -686,7 +686,7 @@ namespace ParcelsAddin
                 var distanceResidualStr = string.Format(Fmt7StrPlusMinus3DecPl, distanceResidual);
                 sw.WriteLine(" 1- 2" + tabDelim + adjustedDirectionStr + tabDelim + adjustedDistanceStr 
                   + tabDelim + directionResidualStr + distanceResidualStr);
-                
+                int skip = 0;
                 for (int i = 0; i < AdjustedCoordinates.Count - 1; i++)
                 {
                   var point1 = AdjustedCoordinates[i];
@@ -711,11 +711,15 @@ namespace ParcelsAddin
                   adjustedDistanceStr = string.Format(Fmt10Str3DecPl, adjustedDistance);
                   distanceResidualStr = string.Format(Fmt7StrPlusMinus3DecPl, distanceResidual);
 
-                  var toPointStr = string.Format(Fmt2Str0DecPl, i + 3);
+                  var toPointStr = string.Format(Fmt2Str0DecPl, i + 3 - skip);
                   if (i == AdjustedCoordinates.Count-2)
                     toPointStr = " 1";
-                  var fromToStr = string.Format(Fmt2Str0DecPl, i + 2) + "-" + toPointStr;
-
+                  var fromToStr = string.Format(Fmt2Str0DecPl, i + 2 - skip) + "-" + toPointStr;
+                  if (originalDistance == 0.0)
+                  {
+                    skip++;
+                    continue;
+                  }
                   sw.WriteLine(fromToStr + tabDelim + adjustedDirectionStr + tabDelim + adjustedDistanceStr
                     + tabDelim + directionResidualStr + distanceResidualStr);
                 }
