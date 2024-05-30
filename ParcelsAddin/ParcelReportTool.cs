@@ -334,7 +334,8 @@ namespace ParcelsAddin
               var idx = 0;
               foreach (var vec in traverseCourses)
               {
-
+                if (vec.Magnitude == 0.0)
+                  continue; //ignore zero length vectors in report
                 double directionParameter = vec.Azimuth * 180.0 / Math.PI;
                 bool isCircularArc = radiusList[idx] != 0.0 && arcLengthList[idx] != 0.0;
                 if (useTangentDirection && isCircularArc)
