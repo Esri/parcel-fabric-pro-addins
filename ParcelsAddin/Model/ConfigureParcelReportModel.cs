@@ -142,12 +142,12 @@ namespace ParcelsAddin
         else if (_distanceUnitName.ToLower() == "feet")
         {
           _metersPerLinearUnit = 0.3048;
-          _distanceUnitPrecision = 2;
+          _distanceUnitPrecision = 3;
         }
         else if (_distanceUnitName.ToLower() == "us feet")
         {
           _metersPerLinearUnit = 0.30480060960121924;
-          _distanceUnitPrecision = 2;
+          _distanceUnitPrecision = 3;
         }
         else if (_distanceUnitName.ToLower() == "chains")
         {
