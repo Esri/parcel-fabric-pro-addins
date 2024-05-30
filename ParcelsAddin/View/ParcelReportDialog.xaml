@@ -22,7 +22,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:extensions="clr-namespace:ArcGIS.Desktop.Extensions;assembly=ArcGIS.Desktop.Extensions"
         mc:Ignorable="d"
-        Title="Parcel Report" Height="340" Width="370" ResizeMode="NoResize"
+        Title="Parcel Report" Height="340" MinHeight="340" MaxWidth="353" MinWidth="353" ResizeMode="CanResizeWithGrip"
         WindowStartupLocation="CenterOwner"
         x:Name="ParcelReportOutput"
     >
@@ -35,21 +35,21 @@
     </controls:ProWindow.Resources>
     <Grid>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="330*"/>
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="257*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
         <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,7,0,0" HorizontalAlignment="Left">
             <TextBlock Margin="0,0,0,0" Style="{DynamicResource Esri_TextBlockRegular}"/>
             <TextBox x:Name="ParcelReportText" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"
-                     Margin="10,0,0,0" Width="350" Height="250" TextAlignment="Left"
+                     Margin="10,0,0,0" MinWidth="330" MaxWidth ="335" MinHeight="250" TextAlignment="Left" VerticalAlignment="Stretch"
                      Text="{Binding Path=ParcelReport.ParcelReportText, UpdateSourceTrigger=PropertyChanged}"/>
         </StackPanel>
 
-        <StackPanel Margin="0,7,10,0" Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Grid.ColumnSpan="1">
+        <StackPanel Margin="0,5,5,10" Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Grid.ColumnSpan="1">
             <Button IsDefault="True"
               Content="OK" Width="80" Command="{Binding Path=OKCommand}"
               CommandParameter="{Binding ElementName=ParcelReportOutput}"
