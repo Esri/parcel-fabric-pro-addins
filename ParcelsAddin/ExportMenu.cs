@@ -286,39 +286,43 @@ namespace ParcelsAddin
           if (recordsLyr == null)
             return "There is no records layer in the map.";
 
-          string distUnit = "Meters";
+          //string distUnit = "Meters";
           string distUnitSuff = " m";
           string areaUnit = "Hectares, Square Meters";
           string smallAreaUnitSuff = " sqm";
           string largeAreaUnitSuff = " ha";
-          double areaConverter = 1.0/10000.0;
+          double sqMetersPerLargeAreaUnit = 10000.0;
+          //double sqMetersPerSmallAreaUnit = 1.0;
 
-          double _metersPerUnit = 1.0;
+          double _metersPerDatasetUnit = 1.0;
           bool _isPCS = true;
           var pSR = recordsLyr.GetFeatureClass().GetDefinition().GetSpatialReference();
           if (pSR.IsProjected)
-            _metersPerUnit = pSR.Unit.ConversionFactor; //meters per unit    
+            _metersPerDatasetUnit = pSR.Unit.ConversionFactor; //meters per dataset unit    
           else
             _isPCS = false;
 
-          if (pSR.Unit.Name == "Foot_US")
+          double _distanceMetersPerBackstageLinearUnit = COGOUtils.GetMetersPerUnitFromProject();
+          double _distanceUnitConversionFactor = _metersPerDatasetUnit / _distanceMetersPerBackstageLinearUnit;
+          double sqMetersPerSmallAreaUnit = _distanceMetersPerBackstageLinearUnit * _distanceMetersPerBackstageLinearUnit;
+
+          string projectDistanceUnitName = DisplayUnitFormats.Instance.GetDefaultProjectUnitFormat(UnitFormatType.Distance).DisplayNamePlural;
+          areaUnit = "Hectares, Square " + projectDistanceUnitName;
+
+          distUnitSuff = " " + DisplayUnitFormats.Instance.GetDefaultProjectUnitFormat(UnitFormatType.Distance).Abbreviation;
+          smallAreaUnitSuff = " sq"+ distUnitSuff;
+
+          if (projectDistanceUnitName.ToLower().Contains("yard") || projectDistanceUnitName.ToLower().Contains("feet") ||
+                  projectDistanceUnitName.ToLower().Contains("chain"))
           {
-            distUnit = "Feet US";
-            areaUnit = "Acres, Square Feet US";
-            distUnitSuff = " ft";
-            smallAreaUnitSuff = " sqft";
+            areaUnit = "Acres, Square " + projectDistanceUnitName;
             largeAreaUnitSuff = " ac";
-            areaConverter = 2.29568e-5;
+            sqMetersPerLargeAreaUnit = 4046.86;
           }
-          else if (pSR.Unit.Name == "Foot")
-          {
-            distUnit = "Feet";
-            areaUnit = "Acres, Square Feet";
-            distUnitSuff = " ft";
-            smallAreaUnitSuff = " sqft";
-            largeAreaUnitSuff = " ac";
-            areaConverter = 2.29568e-5;
-          }
+
+          double smallUnitAreaToBigUnitAreaConverter = sqMetersPerSmallAreaUnit / sqMetersPerLargeAreaUnit;
+          var sDTDU =
+            COGOUtils.GetBackstageDirectionTypeAndUnit(DisplayUnitFormats.Instance.GetDefaultProjectUnitFormat(UnitFormatType.Direction), true);
 
           var Fmt2Str0DecPl = "{0,2:##}";
           var Fmt10Str1DecPl = "{0,10:0.0}";
@@ -360,8 +364,9 @@ namespace ParcelsAddin
                 rowCursor.MoveNext();
                 using Feature rowFeat = (Feature)rowCursor.Current;
                 var polyGeom = rowFeat.GetShape();
-                shapeAreaInProjectionSmallUnit = (polyGeom as Polygon).Area;
-                shapeAreaInProjectionLargeUnit = shapeAreaInProjectionSmallUnit * areaConverter;
+                shapeAreaInProjectionSmallUnit = (polyGeom as Polygon).Area * 
+                      _metersPerDatasetUnit * _metersPerDatasetUnit / sqMetersPerSmallAreaUnit;
+                shapeAreaInProjectionLargeUnit = shapeAreaInProjectionSmallUnit * smallUnitAreaToBigUnitAreaConverter;
                 fldIdx = rowFeat.FindField("Name");
                 if (fldIdx!=-1)
                   parcelName = rowFeat.GetOriginalValue(fldIdx) as string;
@@ -384,9 +389,9 @@ namespace ParcelsAddin
                 }
               }
               ParcelEdgeCollection parcelEdgeCollection = null;
-              var tol = 0.03 / _metersPerUnit; //3 cms
+              var tol = 0.03 / _metersPerDatasetUnit; //3 cms
               if (!_isPCS)
-                tol = Math.Atan(tol / (6378100.0 / _metersPerUnit));
+                tol = Math.Atan(tol / (6378100.0 / _metersPerDatasetUnit));
               try
               {
                 parcelEdgeCollection = await myParcelFabricLayer.GetSequencedParcelEdgeInfoAsync(featlyr.Key,
@@ -429,6 +434,7 @@ namespace ParcelsAddin
                 var attributeLength = 0.0;
                 foreach (Coordinate3D vec in parcelTraverseInfo[0] as List<object>)
                 {
+                  vec.Scale(_distanceUnitConversionFactor);
                   traverseCourses.Add(vec);
                   attributeLength += vec.Magnitude;
                 }
@@ -438,7 +444,7 @@ namespace ParcelsAddin
                   double radius = 0.0;
                   if (radiusObj != null)
                     radius = (double)radiusObj;
-                  radiusList.Add(radius);
+                  radiusList.Add(radius * _distanceUnitConversionFactor);
                 }
 
                 foreach (var arcLengthObj in parcelTraverseInfo[4] as List<object>)
@@ -446,7 +452,7 @@ namespace ParcelsAddin
                   double arcLength = 0.0;
                   if (arcLengthObj != null)
                     arcLength = (double)arcLengthObj;
-                  arcLengthList.Add(arcLength);
+                  arcLengthList.Add(arcLength * _distanceUnitConversionFactor);
                 }
 
                 foreach (var arcIsMajor in parcelTraverseInfo[5] as List<bool>)
@@ -456,14 +462,11 @@ namespace ParcelsAddin
 
                 var count = (parcelTraverseInfo[0] as List<object>).Count();
 
-                var sDTDU =
-                   COGOUtils.GetBackstageDirectionTypeAndUnit(DisplayUnitFormats.Instance.GetDefaultProjectUnitFormat(UnitFormatType.Direction),true);
-
                 var AdjustedCoordinates = COGOUtils.CompassRuleAdjust(traverseCourses, startPoint, startPoint, radiusList, arcLengthList, isMajorList,
                   out Coordinate2D miscloseVector, out double dRatio, out double calcArea);
 
                 var smallUnitAreaStr = string.Format(Fmt10Str1DecPl, calcArea);
-                var largeUnitAreaStr = string.Format(Fmt10Str4DecPl, calcArea * areaConverter);
+                var largeUnitAreaStr = string.Format(Fmt10Str4DecPl, calcArea * smallUnitAreaToBigUnitAreaConverter);
                 var areaInProjectionSmallUnitStr = string.Format(Fmt10Str1DecPl, shapeAreaInProjectionSmallUnit);
                 var areaInProjectionLargeUnitStr = string.Format(Fmt10Str4DecPl, shapeAreaInProjectionLargeUnit);
 
@@ -471,7 +474,7 @@ namespace ParcelsAddin
                 if (Math.Abs(areaSmallUnitDiff) < 0.1)
                   areaSmallUnitDiff = 0.0;
 
-                var areaLargeUnitDiff = (calcArea * areaConverter) - shapeAreaInProjectionLargeUnit;
+                var areaLargeUnitDiff = (calcArea * smallUnitAreaToBigUnitAreaConverter) - shapeAreaInProjectionLargeUnit;
                 if (Math.Abs(areaLargeUnitDiff) < 0.0001)
                   areaLargeUnitDiff = 0.0;
 
@@ -528,7 +531,7 @@ namespace ParcelsAddin
                 sw.WriteLine("             Name:" + tabDelim + parcelName);
                 sw.WriteLine("           Record:" + tabDelim + parcelRecord);
                 sw.WriteLine("  Number of lines:" + tabDelim + count.ToString());
-                sw.WriteLine("     Length units:" + tabDelim + distUnit);
+                sw.WriteLine("     Length units:" + tabDelim + projectDistanceUnitName);
                 sw.WriteLine(" Direction format:" + tabDelim + sDTDU[0]);
                 sw.WriteLine("   Direction unit:" + tabDelim + sDTDU[1]);
                 sw.WriteLine("       Area units:" + tabDelim + areaUnit);
@@ -643,6 +646,7 @@ namespace ParcelsAddin
                   if (idx == count - 1)
                     toPointStr = " 1";
 
+                  vec.Scale(_distanceUnitConversionFactor);
                   var sCourse = string.Format(Fmt2Str0DecPl, idx+1) + "-" + toPointStr + tabDelim + 
                     direction + tabDelim + string.Format(Fmt10Str3DecPl, vec.Magnitude);
                   if (isCircularArc)
