@@ -292,7 +292,6 @@ namespace ParcelsAddin
           string smallAreaUnitSuff = " sqm";
           string largeAreaUnitSuff = " ha";
           double sqMetersPerLargeAreaUnit = 10000.0;
-          //double sqMetersPerSmallAreaUnit = 1.0;
 
           double _metersPerDatasetUnit = 1.0;
           bool _isPCS = true;
@@ -364,8 +363,13 @@ namespace ParcelsAddin
                 rowCursor.MoveNext();
                 using Feature rowFeat = (Feature)rowCursor.Current;
                 var polyGeom = rowFeat.GetShape();
-                shapeAreaInProjectionSmallUnit = (polyGeom as Polygon).Area * 
-                      _metersPerDatasetUnit * _metersPerDatasetUnit / sqMetersPerSmallAreaUnit;
+
+                if (pSR.IsProjected)
+                  shapeAreaInProjectionSmallUnit = (polyGeom as Polygon).Area;
+                else
+                  shapeAreaInProjectionSmallUnit = GeometryEngine.Instance.GeodesicArea(polyGeom);
+
+                shapeAreaInProjectionSmallUnit *= _metersPerDatasetUnit * _metersPerDatasetUnit / sqMetersPerSmallAreaUnit;
                 shapeAreaInProjectionLargeUnit = shapeAreaInProjectionSmallUnit * smallUnitAreaToBigUnitAreaConverter;
                 fldIdx = rowFeat.FindField("Name");
                 if (fldIdx!=-1)
