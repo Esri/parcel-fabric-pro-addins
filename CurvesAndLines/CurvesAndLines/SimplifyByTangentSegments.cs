@@ -488,6 +488,9 @@ namespace CurvesAndLines
       {
         seg1 = GeometryEngine.Instance.QueryTangent(seg1, SegmentExtensionType.ExtendTangentAtTo,
           1.0, AsRatioOrLength.AsRatio, seg1.Length);
+        var ln = LineBuilderEx.CreateLineSegment(seg1.StartPoint, seg1.EndPoint);
+        var newStartPoint = GeometryEngine.Instance.ConstructPointFromAngleDistance(seg1.StartPoint, ln.Angle + Math.PI, seg1.Length);
+        seg1 = LineBuilderEx.CreateLineSegment(newStartPoint, seg1.StartPoint);
       }
       if (seg2 is EllipticArcSegment) //convert it to tangent line segment equivalent
       {
