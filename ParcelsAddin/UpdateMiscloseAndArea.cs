@@ -186,8 +186,8 @@ namespace ParcelsAddin
                 bool bIsCOGOLine = hasCOGODirection && hasCOGODistance;
  
                 //logic to exclude unwanted lines on this edge
-                if (!myLineInfo.HasNextLineConnectivity)
-                  continue;
+                //if (!myLineInfo.HasNextLineConnectivity)
+                //  continue;
                 if (myLineInfo.EndPositionOnParcelEdge > 1)
                   continue;
                 if (myLineInfo.EndPositionOnParcelEdge < 0)

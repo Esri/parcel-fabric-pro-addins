@@ -15,13 +15,13 @@
  */  
 -->
 <ArcGIS defaultAssembly="ParcelsAddin.dll" defaultNamespace="ParcelsAddin" xmlns="http://schemas.esri.com/DADF/Registry" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://schemas.esri.com/DADF/Registry file:///C:/Program%20Files/ArcGIS/Pro/bin/ArcGIS.Desktop.Framework.xsd">
-  <AddInInfo id="{d4508f6d-9f77-436e-a950-574f3af20720}" version="1.5.2" desktopVersion="3.0.36056">
+  <AddInInfo id="{d4508f6d-9f77-436e-a950-574f3af20720}" version="1.5.3" desktopVersion="3.0.36056">
     <Name>Parcel Utilities</Name>
     <Description>Parcel fabric tools</Description>
     <Image>Images\FabricAddinDesktop32.png</Image>
     <Author>Esri Parcel Team</Author>
     <Company>Esri</Company>
-    <Date>05/31/2024 5:00:00 PM</Date>
+    <Date>09/19/2024 8:00:00 AM</Date>
     <Subject>Editing, Geodatabase, Geometry</Subject>
     <!-- Note subject can be one or more of these topics:
                     Content, Framework, Editing, Geodatabase, Geometry, Geoprocessing, Layouts, Map Authoring, Map Exploration -->
@@ -41,7 +41,9 @@
       <groups>
         <!-- comment this out if you have no controls on the Addin tab to avoid
               an empty group-->
-        <group id="ParcelsAddin_Group1" caption="Manage Edits" appearsOnAddInTab="false" keytip="M">
+        <group id="ParcelsAddin_Group1" caption="Manage Edits" appearsOnAddInTab="false" keytip="M" 
+							 smallImage="pack://application:,,,/ArcGIS.Desktop.Resources;component/Images/EditingInfo16.png" 
+							 largeImage="pack://application:,,,/ArcGIS.Desktop.Resources;component/Images/EditingInfo32.png">
           <!-- host controls within groups -->
           <button refID="ParcelsAddin_EditOperationUndo" size="large" />
           <button refID="ParcelsAddin_EditOperationRedo" size="large" />
@@ -49,27 +51,35 @@
           <button refID="esri_editing_DiscardEditsBtn" size="middle" />
           <!--<button refID="ParcelsAddin_ConfigureParcelReport" size="large" />-->
         </group>
-        <group id="ParcelsAddin_Group2" caption="Selection" appearsOnAddInTab="false" keytip="S">
+        <group id="ParcelsAddin_Group2" caption="Selection" appearsOnAddInTab="false" keytip="S" 
+							 smallImage="pack://application:,,,/ArcGIS.Desktop.Resources;component/Images/SelectionSelectUnselect16.png" 
+							 largeImage="pack://application:,,,/ArcGIS.Desktop.Resources;component/Images/SelectionSelectUnselect32.png">
           <!-- host controls within groups -->
           <button refID="esri_mapping_selectByRectangleTool" size="large" />
           <button refID="esri_editing_ShowAttributes" size="middle" />
           <button refID="esri_editing_selectParcelFeaturesButton" size="middle" />
           <button refID="esri_mapping_clearSelectionButton" size="middle" />
         </group>
-        <group id="ParcelsAddin_Group3" caption="Edit" appearsOnAddInTab="false" keytip="E">
+        <group id="ParcelsAddin_Group3" caption="Edit" appearsOnAddInTab="false" keytip="E" 
+							 smallImage="pack://application:,,,/ArcGIS.Desktop.Resources;component/Images/EditingSketchTool16.png"
+							 largeImage="pack://application:,,,/ArcGIS.Desktop.Resources;component/Images/EditingSketchTool32.png">
           <!-- host controls within groups -->
           <button refID="ParcelsAddin_CreateRemainder" size="large" />
           <splitButton refID="ParcelsAddin_UpdateMiscloseAndAreaSplitButton" />
           <splitButton refID="ParcelsAddin_UpdateCOGOSplitButton" />
         </group>
-        <group id="ParcelsAddin_Group4" caption="Measure" appearsOnAddInTab="false" keytip="ME">
+        <group id="ParcelsAddin_Group4" caption="Measure" appearsOnAddInTab="false" keytip="ME" 
+							 smallImage="pack://application:,,,/ArcGIS.Desktop.Resources;component/Images/MeasureResults16.png" 
+							 largeImage="pack://application:,,,/ArcGIS.Desktop.Resources;component/Images/MeasureResults32.png">
           <!-- host controls within groups -->
           <tool refID="esri_editing_measureDirectionDistanceTool" size="small" />
           <tool refID="esri_editing_measureOffsetTool" size="small" />
           <tool refID="esri_editing_measureAngleTool" size="small" />
 					<splitButton refID="ParcelsAddin_ParcelReportToolSplitButton" />
         </group>
-        <group id="ParcelsAddin_Group5" caption="Files" appearsOnAddInTab="false" keytip="F">
+        <group id="ParcelsAddin_Group5" caption="Files" appearsOnAddInTab="false" keytip="F" 
+							 smallImage="pack://application:,,,/ArcGIS.Desktop.Resources;component/Images/Text_File16.png" 
+							 largeImage="pack://application:,,,/ArcGIS.Desktop.Resources;component/Images/Text_File32.png">
           <!-- host controls within groups -->
           <tool refID="ParcelsAddin_ExportMenu" size="large" />
         </group>

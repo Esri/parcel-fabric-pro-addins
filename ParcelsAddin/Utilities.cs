@@ -1408,10 +1408,15 @@ namespace ParcelsAddin
       bool? ok = aBrowseForFolder.ShowDialog();
       if (ok == true)
       {
-        var myItems = aBrowseForFolder.Items;
-        folderPath = myItems.First().Path;
-
-        //sTextFileFabricPointIDToGuid = Path.Combine(folderPath, Module1.PointIDMapTextFile);
+        try
+        {
+          var myItems = aBrowseForFolder.Items;
+          folderPath = myItems.First().Path;
+        }
+        catch
+        { 
+          return false; 
+        }
         ConfigurationsLastUsed.Default[ConfigurationSettingsName] = folderPath;
         ConfigurationsLastUsed.Default.Save();
 

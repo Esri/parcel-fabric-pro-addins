@@ -131,7 +131,6 @@ namespace ParcelsAddin
                 var currentAzimuthType = insp["azimuthtype"];
                 if (currentAzimuthType != DBNull.Value)
                 {
-                  //int value = (int)Enum.Parse(typeof(TestAppAreana.MovieList.Movies), KeyVal);
                   azimuthType = (GeodeticDirectionType)(int)currentAzimuthType;
                   azimuthTypeIsNull = false;
                 }
@@ -229,6 +228,12 @@ namespace ParcelsAddin
                   double incomingDirection = (double)COGODirectionDistanceRadiusArcLength[0];
                   double diff =
                     Math.Abs(COGOUtils.AngleDifferenceBetweenDirections(currentDirection, incomingDirection));
+
+                  //clamp the angular difference for values greater than 90°
+                  //For example, in a close to reversed geometry line, Tan(180°) == Tan(0°) == 0°
+                  if (diff > 90.0)
+                    diff = 90.0;
+
                   double diffRadians = diff * Math.PI / 180.0;
                   //compute the lateral offset for the angle difference
                   double geomDist = COGOUtils.StraightLineStartPointToEndPointDistance(lineGeom as Polyline);
