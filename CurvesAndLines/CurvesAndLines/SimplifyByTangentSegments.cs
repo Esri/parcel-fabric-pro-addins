@@ -425,7 +425,7 @@ namespace CurvesAndLines
       if (seg1.SpatialReference.IsProjected)
         xyTol = seg1.SpatialReference.XYTolerance;
 
-      double baseTolerance = xyTol * 10.0;
+      double baseTolerance = xyTol * 30.0;
       var shorterCircArc = seg1.Length<=seg2.Length?seg1 as EllipticArcSegment: seg2 as EllipticArcSegment;
 
       double circArcDelta = shorterCircArc.CentralAngle;
@@ -440,9 +440,9 @@ namespace CurvesAndLines
             Math.Abs(circArcDelta) < (3.0 * Math.PI / 180.0))
         circArcDelta = 3.0 * Math.PI / 180.0;
 
-      double dX = Math.Abs(xyTol * (1.0 / Math.Sin(circArcDelta)));
-      double precisionNoiseFactor = dX * Math.Log(Math.Abs(shorterCircArc.SemiMajorAxis));
-
+      //use a precision noise as 1% of radius
+      double d1Percent = Math.Abs(shorterCircArc.SemiMajorAxis) / 100.0;
+      double precisionNoiseFactor = d1Percent * Math.Cos(circArcDelta); //maximized for small central angles
       double radiusTolerance = baseTolerance + precisionNoiseFactor;
       if (radiusTolerance < xyTol)
         radiusTolerance = xyTol;
@@ -452,8 +452,8 @@ namespace CurvesAndLines
       double testRadiusDifference = Math.Abs(r2 - r1);
 
       //test the distance between center points to confirm the same side of circular arc
-      double ratio = Math.Abs(r1 / 100.0); //1 percent of radius; only a course-grained check needed
-      double centerPointTolerance = Math.Abs(shorterCircArc.SemiMajorAxis * ratio);
+       //use 10 percent of radius; only a course-grained check needed
+      double centerPointTolerance = 10.0 * d1Percent;
       var cp1 = (seg1 as EllipticArcSegment).CenterPoint;
       var cp2 = (seg2 as EllipticArcSegment).CenterPoint;
       var testDist = LineBuilderEx.CreateLineSegment(cp1, cp2).Length;
