@@ -440,8 +440,8 @@ namespace CurvesAndLines
             Math.Abs(circArcDelta) < (3.0 * Math.PI / 180.0))
         circArcDelta = 3.0 * Math.PI / 180.0;
 
-      //use a precision noise as 1% of radius
-      double d1Percent = Math.Abs(shorterCircArc.SemiMajorAxis) / 100.0;
+      //use a precision noise as 1.25 % of radius
+      double d1Percent = Math.Abs(shorterCircArc.SemiMajorAxis) * (1.25/ 100.0);
       double precisionNoiseFactor = d1Percent * Math.Cos(circArcDelta); //maximized for small central angles
       double radiusTolerance = baseTolerance + precisionNoiseFactor;
       if (radiusTolerance < xyTol)
