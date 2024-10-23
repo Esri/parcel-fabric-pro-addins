@@ -672,8 +672,11 @@ namespace ParcelsAddin
                 -pCircArcLast.SemiMajorAxis : Math.Abs(pCircArcLast.SemiMajorAxis); //radius
         double dArcLengthSUM = 0.0;
         //use 30 times xy tolerance for circular arc segment tangency test
-        //around 3cms if using default XY Tolerance - recommended
-        double dTangencyToleranceTest = myLineFeature.SpatialReference.XYTolerance * 30.0;
+        //around 3 cms if using default XY Tolerance - recommended
+        //base tolerance of 3 cms + precision noise as 1.25 % of radius
+        double dPercent = Math.Abs(pCircArcLast.SemiMajorAxis) * (1.25/ 100.0);
+        double dTangencyToleranceTest = dPercent + myLineFeature.SpatialReference.XYTolerance * 30.0;
+
         for (int i = 0; i < numSegments; i++)
         {
           pCircArc = iList[i] as EllipticArcSegment;
