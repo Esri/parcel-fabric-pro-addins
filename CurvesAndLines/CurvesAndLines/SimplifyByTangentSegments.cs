@@ -42,6 +42,7 @@ namespace CurvesAndLines
       //loop through all layers and get their selections
       CancelableProgressorSource cps = new("Simplify By Tangent Segments", "Canceled");
       string sReportResult = "";
+      double userAllowedOffsetInMeters = 2;
       string errorMessage = await QueuedTask.Run(() =>
       {
         try
@@ -70,31 +71,50 @@ namespace CurvesAndLines
             var ids = new List<long>(layerId.Value);
             if (ids.Count == 0)
               continue;
-              //return "No selected features found. Please select features and try again.";
+            //return "No selected features found. Please select features and try again.";
 
             QueryFilter quFilter = new();
             quFilter.ObjectIDs = ids;
+
+            var xyTol = 0.001 / 6371000.0 * Math.PI / 180.0; //default to 1mm in GCS decimal degree
+            var defn = featLyr.GetFeatureClass().GetDefinition();
+            if (defn.GetSpatialReference().IsProjected)
+              xyTol = defn.GetSpatialReference().XYTolerance;
+
+            if (userAllowedOffsetInMeters <= 0.001)
+              userAllowedOffsetInMeters = 0.001;
+
+            if (userAllowedOffsetInMeters > 2.0 )
+              userAllowedOffsetInMeters = 2.0;
+
             using RowCursor featCursor = featLyr.Search(quFilter);
             while (featCursor.MoveNext())
             {
               using Feature feature = (Feature)featCursor.Current;
               var featGeom = feature.GetShape();
-              if (SimplifyBySegmentTangency(ref featGeom, out int removedVertexCount))
+              var origGeom = featGeom.Clone(); //Copy of the original geometry
+              if (!SimplifyBySegmentTangency(ref featGeom, out int removedVertexCount1, xyTol * 1.4))//do an initial tangent-definitive run
+                continue;
+              if (SimplifyBySegmentTangency(ref featGeom, out int removedVertexCount2, userAllowedOffsetInMeters))
               {
+                int removedVertexCount = removedVertexCount1 + removedVertexCount2;
                 if (removedVertexCount > 0)
                 {
-                  cps.Progressor.Value += (uint)removedVertexCount;
-                  editOper.Modify(featLyr, feature.GetObjectID(), featGeom);
-                  featureCount++;
+                  if (!IsDifferentGeometry(userAllowedOffsetInMeters, origGeom, featGeom))
+                  {
+                    cps.Progressor.Value += (uint)removedVertexCount;
+                    editOper.Modify(featLyr, feature.GetObjectID(), featGeom);
+                    featureCount++;
+                  }
                 }
               }
               if (cps.Progressor.CancellationToken.IsCancellationRequested)
-                break;             
+                break;
             }
             if (cps.Progressor.CancellationToken.IsCancellationRequested)
               break;
-            
-            cps.Progressor.Status = "Feature vertices removed: " + cps.Progressor.Value 
+
+            cps.Progressor.Status = "Feature vertices removed: " + cps.Progressor.Value
             + Environment.NewLine + "Updating " + featureCount.ToString() + " features ...";
           }
           if (cps.Progressor.CancellationToken.IsCancellationRequested)
@@ -120,7 +140,49 @@ namespace CurvesAndLines
         MessageBox.Show(sReportResult, "Simplify By Tangent Segments");
     }
 
-    internal static bool SimplifyBySegmentTangency(ref Geometry theGeometry, out int VertexRemoveCount)
+    internal static bool IsDifferentGeometry(double AllowableDifferenceInMeters, Geometry originalGeometry, Geometry newGeometry)
+    {
+      ////==== test if removed vertices result in a geometry change that
+      ////is more than the allowable offset tolerance
+      bool outsideLimits = false;
+      var mapPointList = GetGeometryCoordinates(originalGeometry);
+      foreach (var mapPoint in mapPointList)
+      {
+        double d = GeometryEngine.Instance.Distance(mapPoint, newGeometry);
+        if (d > AllowableDifferenceInMeters)
+        {
+          outsideLimits = true;
+          break;
+        }
+      }
+      return outsideLimits;
+    }
+
+    internal static List<MapPoint> GetGeometryCoordinates(Geometry geometry)
+    {
+      // Get the coordinates based on the geometry type
+      List<MapPoint> mapPoints = new();
+      switch (geometry.GeometryType)
+      {
+        case GeometryType.Point:
+          MapPoint point = geometry as MapPoint;
+          mapPoints.Add(point);
+          break;
+        case GeometryType.Polyline:
+        case GeometryType.Polygon:
+          foreach (var point2 in ((Multipart) geometry).Points)
+            mapPoints.Add(point2);
+          break;
+          // Handle other geometry types as needed
+        default:
+            ;// Console.WriteLine("Unsupported geometry type.");
+        break;
+      }
+      return mapPoints;
+    }
+
+    internal static bool SimplifyBySegmentTangency(ref Geometry theGeometry, out int VertexRemoveCount,
+      double maxAllowedOffsetInMeters = 0.03)
     {
       VertexRemoveCount = 0;
       bool bSegmentsChanged = false;
@@ -145,9 +207,13 @@ namespace CurvesAndLines
       if (partCount > 1)
         return false;
 
+      double _metersPerUnitDataset = 1.0;
       var xyTol = 0.001 / 6371000.0 * Math.PI / 180.0; //default to 1mm in GCS decimal degree
       if (theGeometry.SpatialReference.IsProjected)
+      {
         xyTol = theGeometry.SpatialReference.XYTolerance;
+        _metersPerUnitDataset = theGeometry.SpatialReference.Unit.ConversionFactor;
+      }
 
       //test for special case where segments share common vertex, "pretzel" skip (not implemented)
       if (HasSegmentsSharingAVertex(theGeometry))
@@ -163,15 +229,18 @@ namespace CurvesAndLines
 
       int iSegCount = geomSegments.Count;
       var lstLineSegments = geomSegments.ToList();
-      if (iSegCount < 2)
-        return false;
+      if (iSegCount == 1)
+        return true; //already simplified
+
+      if (iSegCount == 0)
+        return false; //no segments
 
       var longestSeg = 0.0;
       foreach (Segment segment in lstLineSegments)
         longestSeg = (segment.Length > longestSeg) ? segment.Length : longestSeg;
 
       var envHalfDiagLength = 
-        Math.Sqrt(Math.Pow(theGeometry.Extent.Width, 2.0) + Math.Pow(theGeometry.Extent.Height, 2.0)) / 2.0;
+        Math.Sqrt(Math.Pow(theGeometry.Extent.Width, 2.0) + Math.Pow(theGeometry.Extent.Height, 2.0)) / 2.0 * _metersPerUnitDataset;
 
       for (int i = iSegCount - 1; i > 0; i--)
       {
@@ -229,11 +298,9 @@ namespace CurvesAndLines
           Is2StraightLines = false;
         }
 
-        //bool segmentsAreTangent =
-        //  IsSegmentPairTangent(pSeg0, pSeg1, default, default, longestSeg);
-
         bool segmentsAreTangent =
-          IsSegmentPairTangent(pSeg0, pSeg1, default, default, envHalfDiagLength);
+          IsSegmentPairTangent(pSeg0, pSeg1,MaxAllowedOffsetFromUserInMeters: maxAllowedOffsetInMeters,
+              MaxFeatureLengthInMeters: envHalfDiagLength);
 
         if (segmentsAreTangent && Is2CircularArcs)
         {
@@ -461,12 +528,18 @@ namespace CurvesAndLines
       return testRadiusDifference <= radiusTolerance && testDist <= centerPointTolerance;
     }
 
-    internal static bool IsSegmentPairTangent(Segment seg1, Segment seg2, 
+    internal static bool IsSegmentPairTangent(Segment seg1, Segment seg2, double MaxAllowedOffsetFromUserInMeters = 0.03,
       double MinOffsetToleranceInMeters = 0.0, double MaxOffsetToleranceInMeters = 0.0,
       double MaxFeatureLengthInMeters = 0.0, double OffsetRatio = 250.0)
     {
+      //MaxAllowedOffsetFromUserInMeters: This user provided tolerance is the master / override.
+      //No geometry change more than this allowed.
+      //The other tolerances and offset ratio parameters in this function are "under-the-hood"
+      //tuning settings, ideally never exposed to the user.
+
       var xyTol = 0.001 / 6371000.0 * Math.PI / 180.0; //default to 1mm in GCS decimal degree
       double _metersPerUnitDataset = 1.0;
+      //Convert all lengths to meters
 
       if (seg1.SpatialReference.IsProjected)
       {
@@ -487,23 +560,24 @@ namespace CurvesAndLines
       if (seg1 is EllipticArcSegment) //convert it to tangent line segment equivalent
       {
         seg1 = GeometryEngine.Instance.QueryTangent(seg1, SegmentExtensionType.ExtendTangentAtTo,
-          1.0, AsRatioOrLength.AsRatio, seg1.Length);
+          1.0, AsRatioOrLength.AsRatio, seg1.Length * _metersPerUnitDataset);
         var ln = LineBuilderEx.CreateLineSegment(seg1.StartPoint, seg1.EndPoint);
-        var newStartPoint = GeometryEngine.Instance.ConstructPointFromAngleDistance(seg1.StartPoint, ln.Angle + Math.PI, seg1.Length);
+        var newStartPoint = GeometryEngine.Instance.ConstructPointFromAngleDistance(seg1.StartPoint, 
+          ln.Angle + Math.PI,seg1.Length * _metersPerUnitDataset);
         seg1 = LineBuilderEx.CreateLineSegment(newStartPoint, seg1.StartPoint);
       }
       if (seg2 is EllipticArcSegment) //convert it to tangent line segment equivalent
       {
         seg2 = GeometryEngine.Instance.QueryTangent(seg2, SegmentExtensionType.ExtendTangentAtFrom,
-          0.0, AsRatioOrLength.AsRatio, seg2.Length);
+          0.0, AsRatioOrLength.AsRatio, seg2.Length * _metersPerUnitDataset);
       }
-      var minO = xyTol * 20.0; // 2cms default
-      var maxO = xyTol * 2000.0; // 200cms default
+      var minO = xyTol * 20.0 * _metersPerUnitDataset; // 2cms default
+      var maxO = xyTol * 2000.0 * _metersPerUnitDataset; // 200cms default
 
       var oRP = Math.Abs(OffsetRatio);
       if (oRP < 10.0)
         oRP = 10.0;
-      
+
       if (MinOffsetToleranceInMeters != 0.0)
         minO = MinOffsetToleranceInMeters;
 
@@ -538,7 +612,14 @@ namespace CurvesAndLines
 
       if (mB <= xyTol/1.1)
         return true; //if perpendicular offset distance is near-zero, then segments are tangent
-      
+
+      var maxAllowableOffsetFromUser = xyTol * 30.0 * _metersPerUnitDataset; // 3cms default
+      if (MaxAllowedOffsetFromUserInMeters != 0.03)
+        maxAllowableOffsetFromUser = xyTol * MaxAllowedOffsetFromUserInMeters*1000.0 * _metersPerUnitDataset;
+
+      if (mB > maxAllowableOffsetFromUser)
+        return false; //iAmTangent? = no
+
       dotProd = lineACUnitVec.DotProduct(lineBCUnitVec);
       var angBCA = Math.Acos(dotProd);
 
@@ -553,14 +634,12 @@ namespace CurvesAndLines
         return false;
 
       var mC = Math.Abs(Math.Cos(angBCA) * lineBCVec.Magnitude * _metersPerUnitDataset);
-
-      var z = (MaxFeatureLengthInMeters > lineACVec.Magnitude * _metersPerUnitDataset) ?
-        Math.Log(MaxFeatureLengthInMeters / lineACVec.Magnitude * _metersPerUnitDataset) : Math.Log(lineACVec.Magnitude * MaxFeatureLengthInMeters);
-
+      var dAC = lineACVec.Magnitude * _metersPerUnitDataset;
+      var z = (MaxFeatureLengthInMeters > dAC) ? Math.Log(MaxFeatureLengthInMeters / dAC) : Math.Log(MaxFeatureLengthInMeters * dAC);
       var lengthContextMinO = minO * z;
 
       if (lengthContextMinO < minO / 2.0)
-        lengthContextMinO = minO / 2.0; // 1 cm is the smallest allowable offset.
+        lengthContextMinO = minO / 2.0; // 1 cm is the smallest allowable offset. Clamp to smallest
 
       var R = (mC < mA) ? mC / mB : mA / mB;
       bool iAmABend = (R <= oRP && mB >= lengthContextMinO) || mB >= maxO;
