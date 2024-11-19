@@ -53,6 +53,8 @@ namespace CurvesAndLines
           Module1.GetFeatureLayerSelections(lstFeatLayers,
             out Dictionary<FeatureLayer, List<long>> layerIds);
 
+          var mapSpatRef = MapView.Active.Map.SpatialReference;
+
           var editOper = new EditOperation()
           {
             Name = "Simplify By Tangent Segments",
@@ -61,6 +63,21 @@ namespace CurvesAndLines
             SelectModifiedFeatures = false
           };
           int featureCount = 0;
+          int mapGCSWkid = mapSpatRef.GcsWkid;
+
+          //do an initial check on the layers for a datum shift
+          foreach (var layerId in layerIds)
+          {
+            var featLyr = layerId.Key;
+            if (featLyr.ShapeType == esriGeometryType.esriGeometryPoint)
+              continue; //skip point layers
+            if (mapGCSWkid != featLyr.GetSpatialReference().GcsWkid)
+            {
+              return "One or more layers use a different datum to the map. " +
+              "Please ensure the layers and map share a common geographic datum and try again.";
+            }
+          }
+
           foreach (var layerId in layerIds)
           {
             var featLyr = layerId.Key;
@@ -77,9 +94,11 @@ namespace CurvesAndLines
             quFilter.ObjectIDs = ids;
 
             var xyTol = 0.001 / 6371000.0 * Math.PI / 180.0; //default to 1mm in GCS decimal degree
-            var defn = featLyr.GetFeatureClass().GetDefinition();
-            if (defn.GetSpatialReference().IsProjected)
-              xyTol = defn.GetSpatialReference().XYTolerance;
+            if (featLyr.GetSpatialReference().IsProjected)
+              xyTol = featLyr.GetSpatialReference().XYTolerance;
+
+            bool hasDatumShift = mapGCSWkid != featLyr.GetSpatialReference().GcsWkid;
+            bool projectGeom = !hasDatumShift && (featLyr.GetSpatialReference().Wkid != mapSpatRef.Wkid);
 
             if (userAllowedOffsetInMeters <= 0.001)
               userAllowedOffsetInMeters = 0.001;
@@ -91,7 +110,12 @@ namespace CurvesAndLines
             while (featCursor.MoveNext())
             {
               using Feature feature = (Feature)featCursor.Current;
-              var featGeom = feature.GetShape();
+              var featGeomUnprojected = feature.GetShape();
+
+              var featGeom = featGeomUnprojected;
+              if (projectGeom)//project the shape to map
+                featGeom = GeometryEngine.Instance.Project(featGeomUnprojected, mapSpatRef);
+
               var origGeom = featGeom.Clone(); //Copy of the original geometry
               if (!SimplifyBySegmentTangency(ref featGeom, out int removedVertexCount1, xyTol * 1.4))//do an initial tangent-definitive run
                 continue;
@@ -173,9 +197,8 @@ namespace CurvesAndLines
           foreach (var point2 in ((Multipart) geometry).Points)
             mapPoints.Add(point2);
           break;
-          // Handle other geometry types as needed
         default:
-            ;// Console.WriteLine("Unsupported geometry type.");
+            ;// Unsupported geometry type.
         break;
       }
       return mapPoints;
