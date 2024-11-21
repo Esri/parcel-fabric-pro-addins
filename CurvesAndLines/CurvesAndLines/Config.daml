@@ -48,10 +48,10 @@
         </group>
         <group id="CurvesAndLines_Group1" caption="Selection" appearsOnAddInTab="false" launcherButtonID="esri_mapping_openSelectionOptionsButton" keytip="S">
           <!-- host controls within groups -->
-					<button refID="CurvesAndLines_SelectMultiSegmentLines" size="large" />
+          <button refID="CurvesAndLines_SelectMultiSegmentLines" size="large" />
           <button refID="CurvesAndLines_SelectCircularArcs" size="large" />
-					<button refID="CurvesAndLines_SelectStraightLines" size="large" />
-					<button refID="CurvesAndLines_SelectBeziers" size="middle" />
+          <button refID="CurvesAndLines_SelectStraightLines" size="large" />
+          <button refID="CurvesAndLines_SelectBeziers" size="middle" />
           <button refID="CurvesAndLines_SelectEllipticalArcs" size="middle" />
           <button refID="CurvesAndLines_SelectMultipart" size="middle" />
           <button refID="esri_mapping_selectByRectangleTool" size="large" />
@@ -60,8 +60,8 @@
           <button refID="esri_mapping_clearSelectionButton" size="small" />
         </group>
         <group id="CurvesAndLines_Group2" caption="Modify" appearsOnAddInTab="false" keytip="M">
-          <button refID="CurvesAndLines_SimplifyByTangentSegments" size="large" />
-          <button refID="CurvesAndLines_SimplifyBySingleSegmentCOGO" size="large" />
+					<splitButton refID="CurvesAndLines_SimplifyByTangentSplitButton" />
+					<button refID="CurvesAndLines_SimplifyBySingleSegmentCOGO" size="large" />
           <button refID="esri_editing_SimplifyBySLACAButton" size="small" />
           <button refID="esri_editing_PlanarizeLineFeatures" size="small" />
           <button refID="esri_editing_splitIntoCOGOLines" size="small" />
@@ -78,11 +78,10 @@
           <tooltip heading="Select Circular Arcs">
 						Select features in the map extent that have circular arcs.<disabledText /></tooltip>
         </button>
-				<button id="CurvesAndLines_SelectMultiSegmentLines" caption="Select Multi- Segment Lines" className="SelectMultiSegmentLines" loadOnClick="true" smallImage="Images\MultiSegmentSelect16.png" largeImage="Images\MultiSegmentSelect32.png" keytip="SM">
-					<tooltip heading="Select Multi-Segment Lines">
-						Select lines in the map extent that have multi-segment geometry.<disabledText />
-					</tooltip>
-				</button>
+        <button id="CurvesAndLines_SelectMultiSegmentLines" caption="Select Multi- Segment Lines" className="SelectMultiSegmentLines" loadOnClick="true" smallImage="Images\MultiSegmentSelect16.png" largeImage="Images\MultiSegmentSelect32.png" keytip="SM">
+          <tooltip heading="Select Multi-Segment Lines">
+						Select lines in the map extent that have multi-segment geometry.<disabledText /></tooltip>
+        </button>
         <button id="CurvesAndLines_SelectBeziers" caption="Beziers" className="SelectBeziers" loadOnClick="true" smallImage="Images\BezierSelect16.png" largeImage="Images\BezierSelect32.png" keytip="SB">
           <tooltip heading="Select Beziers">Select features in the map extent that have bezier curves.<disabledText /></tooltip>
         </button>
@@ -100,7 +99,16 @@
           <tooltip heading="Simplify By COGO">
 						Simplify the selected lines into single segments using COGO attributes. End point locations are held fixed.<disabledText /></tooltip>
         </button>
+        <button id="CurvesAndLines_ConfigureSimplifyByTangentSegments" caption="Configure..." className="ConfigureSimplifyByTangentSegments" loadOnClick="true" smallImage="pack://application:,,,/ArcGIS.Desktop.Resources;component/Images/CogWheel16.png" largeImage="pack://application:,,,/ArcGIS.Desktop.Resources;component/Images/CogWheel32.png">
+          <tooltip heading="Configure Simplify By Tangent Segments">Change the maximum allowable offset for the simplified geometry.<disabledText /></tooltip>
+        </button>
       </controls>
+			<splitButtons>
+				<splitButton id="CurvesAndLines_SimplifyByTangentSplitButton">
+					<button refID="CurvesAndLines_SimplifyByTangentSegments" />
+					<button refID="CurvesAndLines_ConfigureSimplifyByTangentSegments" />
+				</splitButton>
+			</splitButtons>			
     </insertModule>
   </modules>
 </ArcGIS>

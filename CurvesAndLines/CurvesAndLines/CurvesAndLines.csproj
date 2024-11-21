@@ -162,5 +162,18 @@
     <Content Include="Images\SimplifyByTangentSegments16.png" />
     <Content Include="Images\SimplifyByTangentSegments32.png" />
   </ItemGroup>
+  <ItemGroup>
+    <Compile Update="ConfigurationsLastUsed.Designer.cs">
+      <DesignTimeSharedInput>True</DesignTimeSharedInput>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>ConfigurationsLastUsed.settings</DependentUpon>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Update="ConfigurationsLastUsed.settings">
+      <Generator>SettingsSingleFileGenerator</Generator>
+      <LastGenOutput>ConfigurationsLastUsed.Designer.cs</LastGenOutput>
+    </None>
+  </ItemGroup>
   <Import Project="C:\Program Files\ArcGIS\Pro\bin\Esri.ProApp.SDK.Desktop.targets" Condition="Exists('C:\Program Files\ArcGIS\Pro\bin\Esri.ProApp.SDK.Desktop.targets') AND !Exists('Esri.ArcGISPro.Extensions.targets')" />
 </Project>

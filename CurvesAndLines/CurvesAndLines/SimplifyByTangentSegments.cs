@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using ArcGIS.Desktop.Core.UnitFormats;
 
 namespace CurvesAndLines
 {
@@ -42,11 +43,18 @@ namespace CurvesAndLines
       //loop through all layers and get their selections
       CancelableProgressorSource cps = new("Simplify By Tangent Segments", "Canceled");
       string sReportResult = "";
-      double userAllowedOffsetInMeters = 2;
+      double userAllowedOffsetInMeters = 2.0;
       string errorMessage = await QueuedTask.Run(() =>
       {
         try
         {
+          var backstageDistanceUnit =
+            DisplayUnitFormats.Instance.GetDefaultProjectUnitFormat(UnitFormatType.Distance);
+          double metersPerBackstageUnit = backstageDistanceUnit.MeasurementUnit.ConversionFactor;
+
+          ConfigureSimplifyByTangentViewModel simplifyByTangentVM = new(metersPerBackstageUnit);
+          userAllowedOffsetInMeters = simplifyByTangentVM.ConfigureSimplifyByTangentModel.MaxAllowableOffsetToleranceInMeters;
+
           var lstFeatLayers =
             MapView.Active.Map.GetLayersAsFlattenedList().OfType<FeatureLayer>().ToList();
 
