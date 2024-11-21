@@ -108,7 +108,7 @@ namespace CurvesAndLines
             bool hasDatumShift = mapGCSWkid != featLyr.GetSpatialReference().GcsWkid;
             bool projectGeom = !hasDatumShift && (featLyr.GetSpatialReference().Wkid != mapSpatRef.Wkid);
 
-            if (userAllowedOffsetInMeters <= 0.001)
+            if (userAllowedOffsetInMeters < 0.001)
               userAllowedOffsetInMeters = 0.001;
 
             if (userAllowedOffsetInMeters > 2.0 )
@@ -127,8 +127,9 @@ namespace CurvesAndLines
               var origGeom = featGeom.Clone(); //Copy of the original geometry
               if (!SimplifyBySegmentTangency(ref featGeom, out int removedVertexCount1, xyTol * 1.4))//do an initial tangent-definitive run
                 continue;
-              if (SimplifyBySegmentTangency(ref featGeom, out int removedVertexCount2, userAllowedOffsetInMeters))
-              {
+              if (userAllowedOffsetInMeters > 0.001
+                    && SimplifyBySegmentTangency(ref featGeom, out int removedVertexCount2, userAllowedOffsetInMeters))
+              {// do the second run if the user tolerance is greater than XY Tolerance
                 int removedVertexCount = removedVertexCount1 + removedVertexCount2;
                 if (removedVertexCount > 0)
                 {
@@ -213,8 +214,13 @@ namespace CurvesAndLines
     }
 
     internal static bool SimplifyBySegmentTangency(ref Geometry theGeometry, out int VertexRemoveCount,
-      double maxAllowedOffsetInMeters = 0.03)
+      double maxAllowedOffsetInMeters = 2.0)
     {
+      //Short and flat circular arc segment parameter detection settings
+      double circularArcRadiusPrecisionNoise = 1.25; //used to determine if circular arcs share a common centerpoint
+      double flatShortCircularArcToleranceFactor = 50.0; //multiplied by XY tolerance, 50 represents 5cms arclength
+      //
+
       VertexRemoveCount = 0;
       bool bSegmentsChanged = false;
       if (theGeometry == null)
@@ -312,11 +318,15 @@ namespace CurvesAndLines
           var pCirc0 = pSeg0 as EllipticArcSegment;
           var pCirc1 = pSeg1 as EllipticArcSegment;
 
-          if (pCirc0.IsCounterClockwise && !pCirc1.IsCounterClockwise)
-            continue;
+          if (!IsShortFlatCircularArcSegment(pCirc0, flatShortCircularArcToleranceFactor, xyTol) && 
+            !IsShortFlatCircularArcSegment(pCirc1, flatShortCircularArcToleranceFactor, xyTol))
+          {
+            if (pCirc0.IsCounterClockwise && !pCirc1.IsCounterClockwise)
+              continue;
 
-          if (!pCirc0.IsCounterClockwise && pCirc1.IsCounterClockwise)
-            continue;
+            if (!pCirc0.IsCounterClockwise && pCirc1.IsCounterClockwise)
+              continue;
+          }
         }
         else if (pSeg0.SegmentType == SegmentType.Line && pSeg1.SegmentType == SegmentType.Line)
         {
@@ -335,9 +345,12 @@ namespace CurvesAndLines
 
         if (segmentsAreTangent && Is2CircularArcs)
         {
-          if (!HasSameCenterPoint(pSeg0, pSeg1))
-            continue;
 
+          if (!HasSameCenterPoint(pSeg0, pSeg1, circularArcRadiusPrecisionNoise) && 
+            !IsShortFlatCircularArcSegment(pSeg0 as EllipticArcSegment, flatShortCircularArcToleranceFactor, xyTol) && 
+            !IsShortFlatCircularArcSegment(pSeg1 as EllipticArcSegment, flatShortCircularArcToleranceFactor, xyTol))
+              continue;
+          
           var arcOr = ((EllipticArcSegment)pSeg0).IsCounterClockwise ? 
             ArcOrientation.ArcCounterClockwise: ArcOrientation.ArcClockwise;
 
@@ -464,6 +477,35 @@ namespace CurvesAndLines
       return segment;
     }
 
+    private static bool IsShortFlatCircularArcSegment(EllipticArcSegment segment, double ArcLengthTolerance, double xyTol)
+    {
+      var pt01 = segment.StartCoordinate;
+      var pt02 = segment.EndCoordinate;
+      var chord = Math.Sqrt(Math.Pow(pt01.X - pt02.X, 2.0) + Math.Pow(pt01.Y - pt02.Y, 2.0));
+
+      if (segment.Length == 0.0 && chord > xyTol) //this should never be true ... geometry bug 3.0 and 3.1
+      {
+        var point1 = pt01.ToMapPoint();
+        var point2 = pt02.ToMapPoint();
+        var flatCircularArcRadius = chord / (0.1 * Math.PI / 180.0); //based on 0.1 degree central angle
+        var flatCircArc = CreateCircularArcByEndpoints(point1, point2, flatCircularArcRadius, segment.IsCounterClockwise, false);
+        if (flatCircArc != null)
+          return true;
+      }
+
+      if (segment.Length < ArcLengthTolerance && chord < ArcLengthTolerance) //
+      {
+        var point1 = pt01.ToMapPoint();
+        var point2 = pt02.ToMapPoint();
+        var flatCircularArcRadius = chord / (0.1 * Math.PI / 180.0); //based on 0.1 degree central angle
+        var flatCircArc = CreateCircularArcByEndpoints(point1, point2, flatCircularArcRadius, segment.IsCounterClockwise, false);
+        if (flatCircArc != null)
+          return true;
+      }
+
+      return false;
+    }
+
     internal static EllipticArcSegment CreateCircularArcByEndpoints(MapPoint StartPoint, MapPoint EndPoint,
       double Radius, bool IsCounterClockwise, bool IsMajor, double ScaleFactorForRadius = 1.0)
     {
@@ -513,10 +555,16 @@ namespace CurvesAndLines
       return areTangent;
     }
 
-    internal static bool HasSameCenterPoint(Segment seg1, Segment seg2)
+    internal static bool HasSameCenterPoint(Segment seg1, Segment seg2, double precisionNoise = 1.25)
     {
       if (seg1.SegmentType!=SegmentType.EllipticArc || seg2.SegmentType != SegmentType.EllipticArc)
         return false;
+
+      if (precisionNoise <= 1.1)
+        precisionNoise = 1.25;
+
+      if (precisionNoise > 1.4)
+        precisionNoise = 1.25;
 
       var xyTol = 0.001 / 6371000.0 * Math.PI / 180.0; //default to 1mm in GCS decimal degree
 
@@ -539,7 +587,7 @@ namespace CurvesAndLines
         circArcDelta = 3.0 * Math.PI / 180.0;
 
       //use a precision noise as 1.25 % of radius
-      double d1Percent = Math.Abs(shorterCircArc.SemiMajorAxis) * (1.25/ 100.0);
+      double d1Percent = Math.Abs(shorterCircArc.SemiMajorAxis) * (precisionNoise / 100.0);
       double precisionNoiseFactor = d1Percent * Math.Cos(circArcDelta); //maximized for small central angles
       double radiusTolerance = baseTolerance + precisionNoiseFactor;
       if (radiusTolerance < xyTol)
@@ -559,8 +607,8 @@ namespace CurvesAndLines
       return testRadiusDifference <= radiusTolerance && testDist <= centerPointTolerance;
     }
 
-    internal static bool IsSegmentPairTangent(Segment seg1, Segment seg2, double MaxAllowedOffsetFromUserInMeters = 0.03,
-      double MinOffsetToleranceInMeters = 0.0, double MaxOffsetToleranceInMeters = 0.0,
+    internal static bool IsSegmentPairTangent(Segment seg1, Segment seg2, double MaxAllowedOffsetFromUserInMeters = 2.0,
+      double MinOffsetToleranceInMeters = 0.02, double MaxOffsetToleranceInMeters = 2.0,
       double MaxFeatureLengthInMeters = 0.0, double OffsetRatio = 250.0)
     {
       //MaxAllowedOffsetFromUserInMeters: This user provided tolerance is the master / override.
@@ -585,7 +633,7 @@ namespace CurvesAndLines
         seg2 = ShortCircularArcSegmentCheckAndRepair(seg2 as EllipticArcSegment, xyTol);
       //---------
       
-      if (MaxFeatureLengthInMeters == 0.0)
+      if (MaxFeatureLengthInMeters <= 0.0)
         MaxFeatureLengthInMeters = seg1.Length >= seg2.Length ? seg1.Length * _metersPerUnitDataset : seg2.Length * _metersPerUnitDataset;
 
       if (seg1 is EllipticArcSegment) //convert it to tangent line segment equivalent
@@ -602,18 +650,30 @@ namespace CurvesAndLines
         seg2 = GeometryEngine.Instance.QueryTangent(seg2, SegmentExtensionType.ExtendTangentAtFrom,
           0.0, AsRatioOrLength.AsRatio, seg2.Length * _metersPerUnitDataset);
       }
-      var minO = xyTol * 20.0 * _metersPerUnitDataset; // 2cms default
-      var maxO = xyTol * 2000.0 * _metersPerUnitDataset; // 200cms default
+
+      if (MinOffsetToleranceInMeters <= 0.0 || MinOffsetToleranceInMeters >= MaxOffsetToleranceInMeters)
+        MinOffsetToleranceInMeters = xyTol * 20.0 * _metersPerUnitDataset; // 2cms default 
+
+      if (MaxOffsetToleranceInMeters <= 0.0 || MaxOffsetToleranceInMeters <= MinOffsetToleranceInMeters)
+        MaxOffsetToleranceInMeters = xyTol * 2000.0 * _metersPerUnitDataset; // 200cms default 
+
+      MaxAllowedOffsetFromUserInMeters = Math.Abs(MaxAllowedOffsetFromUserInMeters);
+
+      if (MaxAllowedOffsetFromUserInMeters > MaxOffsetToleranceInMeters)
+        MaxAllowedOffsetFromUserInMeters = MaxOffsetToleranceInMeters;
+
+      var minO = MinOffsetToleranceInMeters; //xyTol * 20.0 * _metersPerUnitDataset; // 2cms default
+      var maxO = MaxOffsetToleranceInMeters;//xyTol * 2000.0 * _metersPerUnitDataset; // 200cms default
 
       var oRP = Math.Abs(OffsetRatio);
       if (oRP < 10.0)
         oRP = 10.0;
 
-      if (MinOffsetToleranceInMeters != 0.0)
-        minO = MinOffsetToleranceInMeters;
+      //if (MinOffsetToleranceInMeters != 0.0)
+      //  minO = MinOffsetToleranceInMeters;
 
-      if (MaxOffsetToleranceInMeters != 0.0)
-        maxO = MaxOffsetToleranceInMeters;
+      //if (MaxOffsetToleranceInMeters != 0.0)
+      //  maxO = MaxOffsetToleranceInMeters;
 
       var pointA = seg1.StartCoordinate;
       var pointB = seg1.EndCoordinate;

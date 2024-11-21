@@ -53,16 +53,16 @@ namespace CurvesAndLines
     {
       _distanceUnitAbbr = DistanceUnitAbbreviation;
 
-      _maxAllowableOffsetInBackstageUnits = "0.001";
-      _maxAllowableOffsetInMeters = "0.001";
+      _maxAllowableOffsetInBackstageUnits = "2.000";
+      _maxAllowableOffsetInMeters = "2.000";
 
       string sParamString = ConfigurationsLastUsed.Default["ConfigureSimplifyByTangentLastUsedParams"] as string;
       string[] sParams = sParamString.Split('|');
       if (sParams.Length == 0)
       {
         _distanceUnitAbbr = DistanceUnitAbbreviation;
-        _maxAllowableOffsetInBackstageUnits = "0.001";
-        _maxAllowableOffsetInMeters = "0.001";
+        _maxAllowableOffsetInBackstageUnits = "2.000";
+        _maxAllowableOffsetInMeters = "2.000";
       }
       else
       {
@@ -70,15 +70,15 @@ namespace CurvesAndLines
         {
           _maxAllowableOffsetInMeters = sParams[0];
           if (String.IsNullOrEmpty(_maxAllowableOffsetInMeters))
-            _maxAllowableOffsetInMeters = "0.001";
+            _maxAllowableOffsetInMeters = "2.000";
         }
-        catch { _maxAllowableOffsetInMeters = "0.001"; }
+        catch { _maxAllowableOffsetInMeters = "2.000"; }
       }
 
       //Convert units for UI 
 
       if (!Double.TryParse(_maxAllowableOffsetInMeters, out _maxAllowableOffsetInMetersNumeric))
-        _maxAllowableOffsetInMetersNumeric = 0.001;
+        _maxAllowableOffsetInMetersNumeric = 2.000;
 
       string sFormat = new('0', DistanceDisplayPrecision);
       sFormat = "0." + sFormat;
