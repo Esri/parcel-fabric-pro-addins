@@ -1064,6 +1064,11 @@ namespace ParcelsAddin
       {
         isClosedLoop = true; //start optimistic
         allLinesHaveCOGO = true; //start optimistic
+        long thisLineOID = -1;
+        bool isSameLine = false;
+        bool hasNextLineConnectivity = false;
+        int iDecrement = 0;
+        int iCurveCount = 0;
         foreach (var edge in parcelEdgeCollection.Edges)
         {
           var highestPosition = 0.0;
@@ -1080,14 +1085,23 @@ namespace ParcelsAddin
             //logic to exclude unwanted lines on this edge
             //if (!myLineInfo.HasNextLineConnectivity)
             //  continue;
-            if (myLineInfo.EndPositionOnParcelEdge > 1.0)
-              continue;
-            if (myLineInfo.EndPositionOnParcelEdge < 0.0)
-              continue;
-            if (myLineInfo.StartPositionOnParcelEdge > 1.0)
-              continue;
-            if (myLineInfo.StartPositionOnParcelEdge < 0.0)
-              continue;
+
+            isSameLine = thisLineOID == myLineInfo.ObjectID;
+            thisLineOID=myLineInfo.ObjectID;
+            hasNextLineConnectivity = myLineInfo.HasNextLineConnectivity;
+
+            if (!isSameLine)
+            {
+              if (myLineInfo.EndPositionOnParcelEdge > 1.0)
+                continue;
+              if (myLineInfo.EndPositionOnParcelEdge < 0.0)
+                continue;
+              if (myLineInfo.StartPositionOnParcelEdge > 1.0)
+                continue;
+              if (myLineInfo.StartPositionOnParcelEdge < 0.0)
+                continue;
+            }
+
             //also exclude historic lines
             bool hasRetiredByGuid = TryGetObjectFromFieldUpperLowerCase(featAtts, "RetiredByRecord", out object guid);
             if (hasRetiredByGuid && guid != DBNull.Value)
@@ -1114,13 +1128,20 @@ namespace ParcelsAddin
                 var radiansDirection = ((double)direction * Math.PI / 180.0) + flip;
                 Coordinate3D vect = new();
                 vect.SetPolarComponents(radiansDirection, 0.0, chordDistance);
-                if (ClockwiseDownStreamEdgePosition(myLineInfo) == highestPosition)
-                  //this line's start matches last line's end
+
+                if (ClockwiseDownStreamEdgePosition(myLineInfo) == highestPosition || (isSameLine && hasNextLineConnectivity))
+                //this line's start matches last line's end
+                {
                   vectorChord.Add(vect);
+                  iCurveCount++;
+                }
                 else
+                {
                   //add zero length vector to keep index placeholder
                   //avoids side-case of exactly overlapping lines
+                  iDecrement= iDecrement + 1 - iCurveCount;
                   vectorChord.Add(new Coordinate3D(0.0, 0.0, 0.0));
+                }
 
                 arcLengthList.Add(dArclength);
                 if (Math.Abs(dArclength / dRadius) > Math.PI)
@@ -1137,7 +1158,6 @@ namespace ParcelsAddin
               {    //partial or no circular arc or line COGO
                 allLinesHaveCOGO = false;
                 vectorChord.Add(null);
-
                 if (hasCOGORadius)
                   radiusList.Add((double)radius);
                 else
@@ -1157,14 +1177,17 @@ namespace ParcelsAddin
               var radiansDirection = ((double)direction * Math.PI / 180.0) + flip;
               Coordinate3D vect = new();
               vect.SetPolarComponents(radiansDirection, 0.0, (double)distance);
-              if (ClockwiseDownStreamEdgePosition(myLineInfo) == highestPosition)
-                //this line's start matches previous line's end
+              if (ClockwiseDownStreamEdgePosition(myLineInfo) == highestPosition || (isSameLine && hasNextLineConnectivity))//|| hasNextLine)
+              //this line's start matches previous line's end
                 vectorChord.Add(vect);
               else
-                //add zero length vector to keep index placeholder
-                //avoids side-case of exactly overlapping lines
+              //add zero length vector to keep index placeholder
+              //avoids side-case of exactly overlapping lines
+              {
+                iDecrement = iDecrement + 1 - iCurveCount;
                 vectorChord.Add(new Coordinate3D(0.0, 0.0, 0.0));
-
+              }
+              //iPos++;
               arcLengthList.Add(null);
               radiusList.Add(null);
               isMajorList.Add(false);
@@ -1173,11 +1196,20 @@ namespace ParcelsAddin
             highestPosition =
               highestPosition > UpstreamPos ? highestPosition : UpstreamPos;
           }
-          if (highestPosition != 1)
+          if (highestPosition != 1 && !hasNextLineConnectivity)
           //we lost connectivity, not able to traverse all the way
           //to the end of this edge
           {
             isClosedLoop = false; // no loop connectivity
+          }
+        }
+        for (int x = 0; x < iDecrement; x++)
+        {//use zero length vectors to decrement the downstream circular arc parameter index location
+          for (int i = 0; i < radiusList.Count - 1; i++)
+          {
+            radiusList[i] = radiusList[i + 1];
+            arcLengthList[i] = arcLengthList[i + 1];
+            isMajorList[i] = isMajorList[i + 1];
           }
         }
         return true;

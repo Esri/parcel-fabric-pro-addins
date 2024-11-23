@@ -46,7 +46,6 @@ namespace ParcelsAddin
     private readonly string _lateralOffsetToleranceInBackstageUnits;
     private readonly string _lateralOffsetToleranceInMeters;
     private readonly double _lateralOffsetToleranceInMetersNumeric;
-    private readonly List<string> _spatialReferenceSourceList;
 
     public static ICommand OKCommand
     {
@@ -63,8 +62,6 @@ namespace ParcelsAddin
     public ConfigureUpdateCOGOViewModel(double metersPerBackstageDistanceUnit, 
       int DistanceDisplayPrecision = 3, string DistanceUnitAbbreviation = "m")
     {
-      _spatialReferenceSourceList = new List<string> { "Active map", "Feature class"};
-
       _spatialReferenceSource = "Active map";
 
       _distanceUnitAbbr = DistanceUnitAbbreviation;

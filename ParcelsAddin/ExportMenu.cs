@@ -438,9 +438,12 @@ namespace ParcelsAddin
                 var attributeLength = 0.0;
                 foreach (Coordinate3D vec in parcelTraverseInfo[0] as List<object>)
                 {
-                  vec.Scale(_distanceUnitConversionFactor);
-                  traverseCourses.Add(vec);
-                  attributeLength += vec.Magnitude;
+                  if (vec.Magnitude != 0.0)
+                  {//exclude zero vectors
+                    vec.Scale(_distanceUnitConversionFactor);
+                    traverseCourses.Add(vec);
+                    attributeLength += vec.Magnitude;
+                  }
                 }
                 #region enhance traverse info with circular arc data
                 foreach (var radiusObj in parcelTraverseInfo[3] as List<object>)
@@ -464,7 +467,7 @@ namespace ParcelsAddin
 
                 #endregion
 
-                var count = (parcelTraverseInfo[0] as List<object>).Count();
+                var count = traverseCourses.Count;
 
                 var AdjustedCoordinates = COGOUtils.CompassRuleAdjust(traverseCourses, startPoint, startPoint, radiusList, arcLengthList, isMajorList,
                   out Coordinate2D miscloseVector, out double dRatio, out double calcArea);

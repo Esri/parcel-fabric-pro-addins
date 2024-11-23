@@ -304,7 +304,10 @@ namespace ParcelsAddin
               var startPoint = parcelEdgeCollection.Edges[0].EdgeGeometry.Points[0].Coordinate2D;
               var traverseCourses = new List<Coordinate3D>();
               foreach (Coordinate3D vec in parcelTraverseInfo[0] as List<object>)
-                traverseCourses.Add(vec);
+              {
+                if (vec.Magnitude != 0.0)
+                  traverseCourses.Add(vec);
+              }
 
               var result = COGOUtils.CompassRuleAdjust(traverseCourses, startPoint, startPoint, radiusList, arcLengthList, isMajorList,
                 out Coordinate2D miscloseVector, out double dRatio, out double cogoArea);
@@ -332,6 +335,7 @@ namespace ParcelsAddin
 
               sReportResult += "Clockwise lines:" + Environment.NewLine;
               var idx = 0;
+
               foreach (var vec in traverseCourses)
               {
                 if (vec.Magnitude == 0.0)

@@ -54,8 +54,8 @@ namespace ParcelsAddin
         if (dispUnitFormat.RoundingOption == esriRoundingOptionEnum.esriRoundNumberOfDecimals)
           iRounding = dispUnitFormat.RoundingValue;
 
-        if (iRounding < 3)
-          iRounding = 3;
+        if (iRounding < 4)
+          iRounding = 4;
         string sFormat = new ('0', iRounding);
         sFormat = "0." + sFormat;
       });
