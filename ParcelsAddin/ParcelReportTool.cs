@@ -55,6 +55,7 @@ namespace ParcelsAddin
 
     private readonly ParcelReportViewModel _VM = new ();
     private readonly ConfigureParcelReportViewModel _configVM = new();
+    private  CIMPointSymbol _pointSymbol;
 
     protected override Task OnToolActivateAsync(bool active)
     {
@@ -68,6 +69,8 @@ namespace ParcelsAddin
           //No parcel fabric found in the map.
           return Task.FromResult(true);
         }
+
+        _pointSymbol = ParcelUtils.CreatePointSymbol();
 
         _featureLayer = new List<FeatureLayer>();
         var parcelTypes = _parcelFabricLayer.GetParcelTypeNamesAsync().Result;
@@ -127,7 +130,10 @@ namespace ParcelsAddin
 
       int iDistPrec = 2;
       int iAreaPrec = 0;
-
+      //draw 
+      
+      List<MapPoint> hintPoints = new();
+      Task<IDisposable> _mapV = null;
       try
       {
         string sParamString = ConfigurationsLastUsed.Default["ConfigureParcelReportLastUsedParams"] as string;
@@ -229,19 +235,29 @@ namespace ParcelsAddin
           {
             insp.Load(featlyr.Key, oid);
             var sName = insp["Name"] as string;
+            var polyGeom = insp["Shape"] as Geometry;
+
             ParcelEdgeCollection parcelEdgeCollection = null;
             try
             {
-              var tol = 0.03 / _datasetMetersPerUnit; //3 cms
+              var tol = 0.03 / _datasetMetersPerUnit;
               if (!_isPCS)
                 tol = Math.Atan(tol/(6378100.0/ _datasetMetersPerUnit));
 
               var projectedGeom = GeometryEngine.Instance.Project(geometry,
                 featlyr.Key.GetSpatialReference());
+              var projectedPolygon = GeometryEngine.Instance.Project(polyGeom, featlyr.Key.GetSpatialReference());
+
+              List<Segment> lst = new();
+              ParcelUtils.SimplifyPolygonByLastAndFirstSegmentTangency(ref projectedPolygon, ref lst);
+
+              var x = ParcelUtils.GetBendPointsFromGeometry(projectedPolygon);
+              MapPoint hintPoint = ParcelUtils.FindNearestMapPointTo(x, projectedGeom as MapPoint, out double distance);
+              hintPoints.Add(hintPoint);
 
               parcelEdgeCollection = 
                 await _parcelFabricLayer.GetSequencedParcelEdgeInfoAsync(
-                   featlyr.Key, oid, projectedGeom as MapPoint, tol,
+                   featlyr.Key, oid, hintPoint, tol,
                    ParcelLineToEdgeRelationship.BothVerticesMatchAnEdgeEnd |
                    ParcelLineToEdgeRelationship.StartVertexMatchesAnEdgeEnd |
                    ParcelLineToEdgeRelationship.EndVertexMatchesAnEdgeEnd |
@@ -316,7 +332,22 @@ namespace ParcelsAddin
                 out List<double> radialDirectionList, out List<double> tangentDirectionList,
                 out List<double> chordDistanceList, out List<double> centralAngleList);
 
+              #region Misclose Direction and Distance
               var miscCloseDistance = miscloseVector.Magnitude;
+              string miscloseDirectionString = "";
+              var fromPoint = MapPointBuilderEx.CreateMapPoint(0.0, 0.0);
+              var miscloseDirection = COGOUtils.InverseDirectionAsNorthAzimuth(fromPoint.Coordinate2D, 
+                miscloseVector.ToMapPoint().Coordinate2D, true); //is reversed == true, consistent with ArcMap direction closure
+              miscloseDirectionString = COGOUtils.ConvertNorthAzimuthDecimalDegreesToDisplayUnit(miscloseDirection, _dialogDirectionUnit,
+                  useDMSSymbol); //default chord direction for circular arcs
+
+              if (!useProjectDirectionType)
+                miscloseDirectionString = COGOUtils.ConvertNorthAzimuthDecimalDegreesToDirectionType(miscloseDirection, _directionType,
+                   _dialogDirectionUnit, useDMSSymbol);
+
+              if (useSpaces)
+                miscloseDirectionString = miscloseDirectionString.Replace("-", " ").Replace("°", " ").Replace("'", " ").Replace("\"", "");
+
               var miscCloseDistanceInMeters = miscCloseDistance * _datasetMetersPerUnit;
               var cogoAreaInSqM = cogoArea * _datasetMetersPerUnit * _datasetMetersPerUnit;
               if (!useDatasetDistanceUnit)
@@ -324,6 +355,7 @@ namespace ParcelsAddin
                 miscCloseDistance = miscCloseDistanceInMeters / _distanceMetersPerLinearUnit;
                 cogoArea = cogoAreaInSqM / (_distanceMetersPerLinearUnit * _distanceMetersPerLinearUnit);
               }
+              #endregion
 
               if (useProjectDistanceUnit)
               //for areas use the project area unit when the distance units are in project units
@@ -331,7 +363,7 @@ namespace ParcelsAddin
               
               sReportResult += "COGO Area: " + cogoArea.ToString("F"+ iAreaPrec.ToString()) + Environment.NewLine;
               sReportResult += "Misclose ratio: 1:" + dRatio.ToString("F0") + Environment.NewLine;
-              sReportResult += "Misclose distance: " + miscCloseDistance.ToString(sDistPrecision) + Environment.NewLine;
+              sReportResult += "Misclose: " + miscloseDirectionString + ", " + miscCloseDistance.ToString(sDistPrecision) + Environment.NewLine;
 
               sReportResult += "Clockwise lines:" + Environment.NewLine;
               var idx = 0;
@@ -532,8 +564,18 @@ namespace ParcelsAddin
           _VM.ParcelReport.ParcelReportText = "No parcels found. Please click on visible parcel polygons.";
         else
           _VM.ParcelReport.ParcelReportText = sReportUnits + sReportResult;
+        
+        //////draw : TODO
+        ////var geom = MultipointBuilderEx.CreateMultipoint(hintPoints);
+        ////_mapV = (Task<IDisposable>)MapView.Active.AddOverlay(geom, _pointSymbol.MakeSymbolReference());
+
       });
+
       ParcelReportDlg.ShowDialog();
+
+      ////if(_mapV !=null)
+      ////  _mapV.Dispose();//clear graphic
+      
       return Task.FromResult(true);
     }
 

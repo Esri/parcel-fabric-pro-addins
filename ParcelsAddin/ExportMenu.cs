@@ -89,8 +89,8 @@ namespace ParcelsAddin
             _metersPerUnit = pSR.Unit.ConversionFactor; //meters per unit    
           else
             _isPCS = false;
-          ParcelUtils.GetParcelPolygonFeatureLayersSelection(myParcelFabricLayer,
-            out Dictionary<FeatureLayer, List<long>> parcelPolygonLayerIds);
+          ParcelUtils.GetParcelPolygonFeatureLayersSelectionExt(MapView.Active, out Dictionary<FeatureLayer,
+            List<long>> parcelPolygonLayerIds);
           foreach (var featlyr in parcelPolygonLayerIds)
           {
             cps.Progressor.Message = "Saving " + featlyr.Key.ToString();
@@ -100,10 +100,22 @@ namespace ParcelsAddin
               var tol = 0.03 / _metersPerUnit; //3 cms
               if (!_isPCS)
                 tol = Math.Atan(tol / (6378100 / _metersPerUnit));
+
+              #region Get hint point from northeast corner of parcel envelope
+              //use the north-east corner of the feature as a search point.
+              var insp = featlyr.Key.Inspect(oid);
+              var parcelGeom = insp["Shape"] as Geometry;
+              var northEastCnrPointEnvelopeGeom = MapPointBuilderEx.CreateMapPoint(parcelGeom.Extent.XMax, parcelGeom.Extent.YMax, pSR);
+              List<Segment> lst = new();
+              ParcelUtils.SimplifyPolygonByLastAndFirstSegmentTangency(ref parcelGeom, ref lst);
+              var bends = ParcelUtils.GetBendPointsFromGeometry(parcelGeom);
+              MapPoint hintPoint = ParcelUtils.FindNearestMapPointTo(bends, northEastCnrPointEnvelopeGeom, out double nearDistance);
+              #endregion
+
               try
               {
                 parcelEdgeCollection = await myParcelFabricLayer.GetSequencedParcelEdgeInfoAsync(featlyr.Key,
-                    oid, null, tol,
+                    oid, hintPoint, tol,
                     ParcelLineToEdgeRelationship.BothVerticesMatchAnEdgeEnd |
                     ParcelLineToEdgeRelationship.StartVertexMatchesAnEdgeEnd |
                     ParcelLineToEdgeRelationship.EndVertexMatchesAnEdgeEnd |
@@ -341,8 +353,9 @@ namespace ParcelsAddin
           var underLine = "------------------------------------------------------------------";
           var dblUnderLine = "==================================================================";
 
-          ParcelUtils.GetParcelPolygonFeatureLayersSelection(myParcelFabricLayer,
-            out Dictionary<FeatureLayer, List<long>> parcelPolygonLayerIds);
+          ParcelUtils.GetParcelPolygonFeatureLayersSelectionExt(MapView.Active, out Dictionary<FeatureLayer, 
+            List<long>> parcelPolygonLayerIds);
+
           foreach (var featlyr in parcelPolygonLayerIds)
           {
             cps.Progressor.Message = "Saving " + featlyr.Key.ToString();
@@ -396,10 +409,22 @@ namespace ParcelsAddin
               var tol = 0.03 / _metersPerDatasetUnit; //3 cms
               if (!_isPCS)
                 tol = Math.Atan(tol / (6378100.0 / _metersPerDatasetUnit));
+
+              #region Get hint point from northeast corner of parcel envelope
+              //use the north-east corner of the feature as a search point.
+              var insp = featlyr.Key.Inspect(oid);
+              var parcelGeom = insp["Shape"] as Geometry;
+              var northEastCnrPointEnvelopeGeom = MapPointBuilderEx.CreateMapPoint(parcelGeom.Extent.XMax, parcelGeom.Extent.YMax, pSR);
+              List<Segment> lst = new();
+              ParcelUtils.SimplifyPolygonByLastAndFirstSegmentTangency(ref parcelGeom, ref lst);
+              var bends = ParcelUtils.GetBendPointsFromGeometry(parcelGeom);
+              MapPoint hintPoint = ParcelUtils.FindNearestMapPointTo(bends, northEastCnrPointEnvelopeGeom, out double nearDistance);
+              #endregion
+
               try
               {
                 parcelEdgeCollection = await myParcelFabricLayer.GetSequencedParcelEdgeInfoAsync(featlyr.Key,
-                    oid, null, tol,
+                    oid, hintPoint, tol,
                     ParcelLineToEdgeRelationship.BothVerticesMatchAnEdgeEnd |
                     ParcelLineToEdgeRelationship.StartVertexMatchesAnEdgeEnd |
                     ParcelLineToEdgeRelationship.EndVertexMatchesAnEdgeEnd |
@@ -502,7 +527,7 @@ namespace ParcelsAddin
                 var misCloseXStr = string.Format(Fmt5StrPlusMinus3DecPl, misCloseX);
                 var misCloseYStr = string.Format(Fmt5StrPlusMinus3DecPl, misCloseY);
 
-                var lineVec = LineBuilderEx.CreateLineSegment(pt1, pt2);
+                var lineVec = LineBuilderEx.CreateLineSegment(pt2, pt1);
                 var misCloseDirectionStr = COGOUtils.ConvertPolarRadiansToDisplayUnit(lineVec.Angle,
                   DisplayUnitFormats.Instance.GetDefaultProjectUnitFormat(UnitFormatType.Direction), true);
 

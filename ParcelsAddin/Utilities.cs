@@ -34,6 +34,8 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Input;
+using System.Diagnostics;
+
 
 namespace ParcelsAddin
 {
@@ -1043,7 +1045,7 @@ namespace ParcelsAddin
       else
         return true;
     }
-
+    #region Parcel functions
     internal static bool ParcelEdgeAnalysis(ParcelEdgeCollection parcelEdgeCollection, out bool isClosedLoop,
       out bool allLinesHaveCOGO, out object[] traverseInfo)
     {
@@ -1087,7 +1089,7 @@ namespace ParcelsAddin
             //  continue;
 
             isSameLine = thisLineOID == myLineInfo.ObjectID;
-            thisLineOID=myLineInfo.ObjectID;
+            thisLineOID = myLineInfo.ObjectID;
             hasNextLineConnectivity = myLineInfo.HasNextLineConnectivity;
 
             if (!isSameLine)
@@ -1139,7 +1141,7 @@ namespace ParcelsAddin
                 {
                   //add zero length vector to keep index placeholder
                   //avoids side-case of exactly overlapping lines
-                  iDecrement= iDecrement + 1 - iCurveCount;
+                  iDecrement = iDecrement + 1 - iCurveCount;
                   vectorChord.Add(new Coordinate3D(0.0, 0.0, 0.0));
                 }
 
@@ -1178,7 +1180,7 @@ namespace ParcelsAddin
               Coordinate3D vect = new();
               vect.SetPolarComponents(radiansDirection, 0.0, (double)distance);
               if (ClockwiseDownStreamEdgePosition(myLineInfo) == highestPosition || (isSameLine && hasNextLineConnectivity))//|| hasNextLine)
-              //this line's start matches previous line's end
+                                                                                                                            //this line's start matches previous line's end
                 vectorChord.Add(vect);
               else
               //add zero length vector to keep index placeholder
@@ -1428,6 +1430,97 @@ namespace ParcelsAddin
       }
     }
 
+    internal static bool GetParcelPolygonFeatureLayersSelectionExt(MapView myActiveMapView,
+      out Dictionary<FeatureLayer, List<long>> ParcelPolygonSelections)
+    {
+      List<FeatureLayer> featureLayer = new();
+      ParcelPolygonSelections = new();
+
+      try
+      {
+        var fLyrList = myActiveMapView?.Map?.GetLayersAsFlattenedList()?.OfType<FeatureLayer>()?.
+          Where(l => l != null).Where(l => (l as Layer).ConnectionStatus != ConnectionStatus.Broken);
+
+        if (fLyrList == null) return false;
+
+        foreach (var fLyr in fLyrList)
+        {
+          bool isFabricLyr = fLyr.IsControlledByParcelFabricAsync(ParcelFabricType.ParcelFabric).Result;
+
+          if (isFabricLyr && fLyr.SelectionCount > 0)
+            featureLayer.Add(fLyr);
+        }
+      }
+      catch
+      { return false; }
+      foreach (var lyr in featureLayer)
+      {
+        var fc = lyr.GetFeatureClass();
+        List<long> lstOids = new();
+        using (RowCursor rowCursor = lyr.GetSelection().Search())
+        {
+          while (rowCursor.MoveNext())
+          {
+            using (Row rowFeat = rowCursor.Current)
+            {
+              if (!ParcelPolygonSelections.ContainsKey(lyr))
+                ParcelPolygonSelections.Add(lyr, lstOids);
+              lstOids.Add(rowFeat.GetObjectID());
+            }
+          }
+        }
+        if (lstOids.Count > 0)
+          ParcelPolygonSelections[lyr] = lstOids;
+      }
+      return true;
+    }
+
+    internal static bool GetParcelLineFeatureLayersSelection(MapView myActiveMapView,
+        out Dictionary<FeatureLayer, List<long>> ParcelLineSelections)
+    {
+      List<FeatureLayer> featureLayer = new();
+      ParcelLineSelections = new();
+
+      try
+      {
+        var fLyrList = myActiveMapView?.Map?.GetLayersAsFlattenedList()?.OfType<FeatureLayer>()?.
+          Where(l => l != null).Where(l => (l as Layer).ConnectionStatus != ConnectionStatus.Broken).
+          Where(l => l.GetFeatureClass().GetDefinition().IsCOGOEnabled());
+
+        if (fLyrList == null) return false;
+
+        foreach (var fLyr in fLyrList)
+        {
+          bool isFabricLyr = fLyr.IsControlledByParcelFabricAsync(ParcelFabricType.ParcelFabric).Result;
+
+          if (isFabricLyr && fLyr.SelectionCount > 0)
+            featureLayer.Add(fLyr);
+        }
+      }
+      catch
+      { return false; }
+      foreach (var lyr in featureLayer)
+      {
+        var fc = lyr.GetFeatureClass();
+        List<long> lstOids = new();
+        using (RowCursor rowCursor = lyr.GetSelection().Search())
+        {
+          while (rowCursor.MoveNext())
+          {
+            using (Row rowFeat = rowCursor.Current)
+            {
+              if (!ParcelLineSelections.ContainsKey(lyr))
+                ParcelLineSelections.Add(lyr, lstOids);
+              lstOids.Add(rowFeat.GetObjectID());
+            }
+          }
+        }
+        if (lstOids.Count > 0)
+          ParcelLineSelections[lyr] = lstOids;
+      }
+      return true;
+    }
+
     internal static bool GetTargetFolder(string ConfigurationSettingsName, out string folderPath)
     {
       folderPath = ConfigurationsLastUsed.Default[ConfigurationSettingsName] as string;
@@ -1449,8 +1542,8 @@ namespace ParcelsAddin
           folderPath = myItems.First().Path;
         }
         catch
-        { 
-          return false; 
+        {
+          return false;
         }
         ConfigurationsLastUsed.Default[ConfigurationSettingsName] = folderPath;
         ConfigurationsLastUsed.Default.Save();
@@ -1460,6 +1553,733 @@ namespace ParcelsAddin
       else
         return false;
     }
+
+    #region Tangency Detection
+
+    internal static bool IsSegmentPairTangent(Segment seg1, Segment seg2, double MaxAllowedOffsetFromUserInMeters = 2.0,
+      double MinOffsetToleranceInMeters = 0.02, double MaxOffsetToleranceInMeters = 2.0,
+      double MaxFeatureLengthInMeters = 0.0, double OffsetRatio = 250.0)
+    {
+      //MaxAllowedOffsetFromUserInMeters: This user provided tolerance is the master / override.
+      //No geometry change more than this allowed.
+      //The other tolerances and offset ratio parameters in this function are "under-the-hood"
+      //tuning settings, ideally never exposed to the user.
+
+      var xyTol = 0.001 / 6371000.0 * Math.PI / 180.0; //default to 1mm in GCS decimal degree
+      double _metersPerUnitDataset = 1.0;
+      //Convert all lengths to meters
+
+      if (seg1.SpatialReference.IsProjected)
+      {
+        xyTol = seg1.SpatialReference.XYTolerance;
+        _metersPerUnitDataset = seg1.SpatialReference.Unit.ConversionFactor;
+      }
+
+      // ---- Workaround for geometry bug 3.0 and 3.1 ----
+      if (seg1 is EllipticArcSegment)
+        seg1 = ShortCircularArcSegmentCheckAndRepair(seg1 as EllipticArcSegment, xyTol);
+      if (seg2 is EllipticArcSegment)
+        seg2 = ShortCircularArcSegmentCheckAndRepair(seg2 as EllipticArcSegment, xyTol);
+      //---------
+
+      if (MaxFeatureLengthInMeters <= 0.0)
+        MaxFeatureLengthInMeters = seg1.Length >= seg2.Length ? seg1.Length * _metersPerUnitDataset : seg2.Length * _metersPerUnitDataset;
+
+      if (seg1 is EllipticArcSegment) //convert it to tangent line segment equivalent
+      {
+        seg1 = GeometryEngine.Instance.QueryTangent(seg1, SegmentExtensionType.ExtendTangentAtTo,
+          1.0, AsRatioOrLength.AsRatio, seg1.Length * _metersPerUnitDataset);
+        var ln = LineBuilderEx.CreateLineSegment(seg1.StartPoint, seg1.EndPoint);
+        var newStartPoint = GeometryEngine.Instance.ConstructPointFromAngleDistance(seg1.StartPoint,
+          ln.Angle + Math.PI, seg1.Length * _metersPerUnitDataset);
+        seg1 = LineBuilderEx.CreateLineSegment(newStartPoint, seg1.StartPoint);
+      }
+      if (seg2 is EllipticArcSegment) //convert it to tangent line segment equivalent
+      {
+        seg2 = GeometryEngine.Instance.QueryTangent(seg2, SegmentExtensionType.ExtendTangentAtFrom,
+          0.0, AsRatioOrLength.AsRatio, seg2.Length * _metersPerUnitDataset);
+      }
+
+      if (MinOffsetToleranceInMeters <= 0.0 || MinOffsetToleranceInMeters >= MaxOffsetToleranceInMeters)
+        MinOffsetToleranceInMeters = xyTol * 20.0 * _metersPerUnitDataset; // 2cms default 
+
+      if (MaxOffsetToleranceInMeters <= 0.0 || MaxOffsetToleranceInMeters <= MinOffsetToleranceInMeters)
+        MaxOffsetToleranceInMeters = xyTol * 2000.0 * _metersPerUnitDataset; // 200cms default 
+
+      MaxAllowedOffsetFromUserInMeters = Math.Abs(MaxAllowedOffsetFromUserInMeters);
+
+      if (MaxAllowedOffsetFromUserInMeters > MaxOffsetToleranceInMeters)
+        MaxAllowedOffsetFromUserInMeters = MaxOffsetToleranceInMeters;
+
+      var minO = MinOffsetToleranceInMeters; //xyTol * 20.0 * _metersPerUnitDataset; // 2cms default
+      var maxO = MaxOffsetToleranceInMeters;//xyTol * 2000.0 * _metersPerUnitDataset; // 200cms default
+
+      var oRP = Math.Abs(OffsetRatio);
+      if (oRP < 10.0)
+        oRP = 10.0;
+
+      var pointA = seg1.StartCoordinate;
+      var pointB = seg1.EndCoordinate;
+      var pointC = seg2.EndCoordinate;
+
+      //straight line ac (long line)
+      var lineACVec = new Coordinate3D(pointC.X - pointA.X, pointC.Y - pointA.Y, 0.0);
+      var lineACUnitVec = new Coordinate3D();//unit vector
+      lineACUnitVec.SetPolarComponents(lineACVec.Azimuth, 0.0, 1.0);
+      //====
+      //straight line ab (short line a to test point b)
+      var lineABVec = new Coordinate3D(pointB.X - pointA.X, pointB.Y - pointA.Y, 0);
+      var lineABUnitVec = new Coordinate3D();//unit vector
+      lineABUnitVec.SetPolarComponents(lineABVec.Azimuth, 0.0, 1.0);
+      //====
+      //straight line bc (short line c to test point b)
+      var lineBCVec = new Coordinate3D(pointC.X - pointB.X, pointC.Y - pointB.Y, 0.0);
+      var lineBCUnitVec = new Coordinate3D();//unit vector
+      lineBCUnitVec.SetPolarComponents(lineBCVec.Azimuth, 0.0, 1.0);
+      //====
+
+      var dotProd = lineACUnitVec.DotProduct(lineABUnitVec);
+      var angBAC = Math.Acos(dotProd);
+
+      var mB = Math.Abs(Math.Sin(angBAC) * lineABVec.Magnitude * _metersPerUnitDataset);
+      var mA = Math.Abs(Math.Cos(angBAC) * lineABVec.Magnitude * _metersPerUnitDataset);
+
+      if (mB <= xyTol / 1.1)
+        return true; //if perpendicular offset distance is near-zero, then segments are tangent
+
+      var maxAllowableOffsetFromUser = xyTol * 30.0 * _metersPerUnitDataset; // 3cms default
+      if (MaxAllowedOffsetFromUserInMeters != 0.03)
+        maxAllowableOffsetFromUser = xyTol * MaxAllowedOffsetFromUserInMeters * 1000.0 * _metersPerUnitDataset;
+
+      if (mB > maxAllowableOffsetFromUser)
+        return false; //iAmTangent? = no
+
+      dotProd = lineACUnitVec.DotProduct(lineBCUnitVec);
+      var angBCA = Math.Acos(dotProd);
+
+      //Check for segment deflections between 45° and 135°
+      //Considered to be a bend regardless of segment lengths
+      var angBACinDeg = Math.Abs(angBAC) * 180.0 / Math.PI;
+      var angBCAinDeg = Math.Abs(angBCA) * 180.0 / Math.PI;
+
+      if (angBACinDeg > 45.0 && angBACinDeg < 135.0)
+        return false;
+      if (angBCAinDeg > 45.0 && angBCAinDeg < 135.0)
+        return false;
+
+      var mC = Math.Abs(Math.Cos(angBCA) * lineBCVec.Magnitude * _metersPerUnitDataset);
+      var dAC = lineACVec.Magnitude * _metersPerUnitDataset;
+      var z = (MaxFeatureLengthInMeters > dAC) ? Math.Log(MaxFeatureLengthInMeters / dAC) : Math.Log(MaxFeatureLengthInMeters * dAC);
+      var lengthContextMinO = minO * z;
+
+      if (lengthContextMinO < minO / 2.0)
+        lengthContextMinO = minO / 2.0; // 1 cm is the smallest allowable offset. Clamp to smallest
+
+      var R = (mC < mA) ? mC / mB : mA / mB;
+      bool iAmABend = (R <= oRP && mB >= lengthContextMinO) || mB >= maxO;
+      return !iAmABend; //tangent if not a bend
+    }
+
+    private static Segment ShortCircularArcSegmentCheckAndRepair(EllipticArcSegment segment, double xyTol)
+    {
+      var pt01 = segment.StartCoordinate;
+      var pt02 = segment.EndCoordinate;
+      var chord = Math.Sqrt(Math.Pow(pt01.X - pt02.X, 2.0) + Math.Pow(pt01.Y - pt02.Y, 2.0));
+
+      if (segment.Length == 0.0 && chord > xyTol)//this should never be true ... geometry bug 
+      {
+        var point1 = pt01.ToMapPoint();
+        var point2 = pt02.ToMapPoint();
+        var flatCircularArcRadius = chord / (0.1 * Math.PI / 180.0); //based on 0.1 degree central angle
+        var flatCircArc = CreateCircularArcByEndpoints(point1, point2, flatCircularArcRadius, segment.IsCounterClockwise, false);
+        if (flatCircArc != null)
+          return flatCircArc;
+      }
+      return segment;
+    }
+
+    internal static EllipticArcSegment CreateCircularArcByEndpoints(MapPoint StartPoint, MapPoint EndPoint,
+      double Radius, bool IsCounterClockwise, bool IsMajor, double ScaleFactorForRadius = 1.0)
+    {
+      var pNewSeg = LineBuilderEx.CreateLineSegment(StartPoint, EndPoint);
+
+      double chordDirection = pNewSeg.Angle;
+      double dChord = pNewSeg.Length;
+
+      ArcOrientation CCW =
+        IsCounterClockwise ? ArcOrientation.ArcCounterClockwise : ArcOrientation.ArcClockwise;
+      MinorOrMajor minMaj =
+        IsMajor ? MinorOrMajor.Major : MinorOrMajor.Minor;
+
+      double dRadius = Math.Abs(Radius) * ScaleFactorForRadius;
+
+      EllipticArcSegment circArcSegment;
+      try
+      {
+        circArcSegment = EllipticArcBuilderEx.CreateCircularArc(StartPoint, dChord, chordDirection,
+        dRadius, CCW, minMaj, null);
+        return circArcSegment;
+      }
+      catch { return null; }
+    }
+
+    internal static bool HasSameCenterPoint(Segment seg1, Segment seg2, double precisionNoise = 1.25)
+    {
+      if (seg1.SegmentType != SegmentType.EllipticArc || seg2.SegmentType != SegmentType.EllipticArc)
+        return false;
+
+      if (precisionNoise <= 1.1)
+        precisionNoise = 1.25;
+
+      if (precisionNoise > 1.4)
+        precisionNoise = 1.25;
+
+      var xyTol = 0.001 / 6371000.0 * Math.PI / 180.0; //default to 1mm in GCS decimal degree
+
+      if (seg1.SpatialReference.IsProjected)
+        xyTol = seg1.SpatialReference.XYTolerance;
+
+      double baseTolerance = xyTol * 30.0;
+      var shorterCircArc = seg1.Length <= seg2.Length ? seg1 as EllipticArcSegment : seg2 as EllipticArcSegment;
+
+      double circArcDelta = shorterCircArc.CentralAngle;
+
+      //check for flat circular arcs central angle less than 1°, length less than 1 meter, with same CW/CCW orientation
+      //return center point = true, since prior functions
+      if (Math.Abs(shorterCircArc.CentralAngle) < (1.0 / 180.0 * Math.PI) && ParcelUtils.ChordDistance(shorterCircArc) < xyTol * 1000)
+        return (seg1 as EllipticArcSegment).IsCounterClockwise == (seg2 as EllipticArcSegment).IsCounterClockwise;
+
+      //take care of edge cases -3° to 3° and 177° to 183°
+      if (Math.Abs(circArcDelta - Math.PI) < (3.0 * Math.PI / 180.0) ||
+          Math.Abs(circArcDelta) < (3.0 * Math.PI / 180.0))
+        circArcDelta = 3.0 * Math.PI / 180.0;
+
+      //use a precision noise as 1.25 % of radius
+      double d1Percent = Math.Abs(shorterCircArc.SemiMajorAxis) * (precisionNoise / 100.0);
+      double precisionNoiseFactor = d1Percent * Math.Cos(circArcDelta); //maximized for small central angles
+      double radiusTolerance = baseTolerance + precisionNoiseFactor;
+      if (radiusTolerance < xyTol)
+        radiusTolerance = xyTol;
+
+      var r1 = Math.Abs((seg1 as EllipticArcSegment).SemiMajorAxis);
+      var r2 = Math.Abs((seg2 as EllipticArcSegment).SemiMajorAxis);
+      double testRadiusDifference = Math.Abs(r2 - r1);
+
+      //test the distance between center points to confirm the same side of circular arc
+      //use 10 percent of radius; only a course-grained check needed
+      double centerPointTolerance = 10.0 * d1Percent;
+      var cp1 = (seg1 as EllipticArcSegment).CenterPoint;
+      var cp2 = (seg2 as EllipticArcSegment).CenterPoint;
+      var testDist = LineBuilderEx.CreateLineSegment(cp1, cp2).Length;
+
+      return testRadiusDifference <= radiusTolerance && testDist <= centerPointTolerance;
+    }
+
+    internal static bool IsShortFlatCircularArcSegment(EllipticArcSegment segment, double ArcLengthTolerance, double xyTol)
+    {
+      var pt01 = segment.StartCoordinate;
+      var pt02 = segment.EndCoordinate;
+      var chord = Math.Sqrt(Math.Pow(pt01.X - pt02.X, 2.0) + Math.Pow(pt01.Y - pt02.Y, 2.0));
+
+      if (segment.Length == 0.0 && chord > xyTol) //this should never be true ... geometry bug 3.0 and 3.1
+      {
+        var point1 = pt01.ToMapPoint();
+        var point2 = pt02.ToMapPoint();
+        var flatCircularArcRadius = chord / (0.1 * Math.PI / 180.0); //based on 0.1 degree central angle
+        var flatCircArc = CreateCircularArcByEndpoints(point1, point2, flatCircularArcRadius, segment.IsCounterClockwise, false);
+        if (flatCircArc != null)
+          return true;
+      }
+
+      if (segment.Length < ArcLengthTolerance && chord < ArcLengthTolerance) //
+      {
+        var point1 = pt01.ToMapPoint();
+        var point2 = pt02.ToMapPoint();
+        var flatCircularArcRadius = chord / (0.1 * Math.PI / 180.0); //based on 0.1 degree central angle
+        var flatCircArc = CreateCircularArcByEndpoints(point1, point2, flatCircularArcRadius, segment.IsCounterClockwise, false);
+        if (flatCircArc != null)
+          return true;
+      }
+
+      return false;
+    }
+
+    internal static MapPoint FindNearestMapPointTo(List<MapPoint> mapPointList, MapPoint hitPoint, out double distance)
+    {
+      distance = 100000.0;
+      MapPoint outPoint = null;
+      foreach (MapPoint mapPoint in mapPointList)
+      {
+        double d = GeometryEngine.Instance.Distance(mapPoint, hitPoint);
+        if (d < distance)
+        {
+          outPoint = mapPoint;
+          distance=d;
+        }
+      }
+      return outPoint;
+    }
+
+    internal static double ChordDistance(Segment segment)
+    {
+      if (segment == null)
+        return 0.0;
+      var pt01 = segment.StartCoordinate;
+      var pt02 = segment.EndCoordinate;
+      return Math.Sqrt(Math.Pow(pt01.X - pt02.X, 2.0) + Math.Pow(pt01.Y - pt02.Y, 2.0));
+    }
+
+    internal static List<MapPoint> GetBendPointsFromGeometry(Geometry geometry)
+    {
+      double _metersPerUnitDataset = 1.0;
+      var sr = geometry.SpatialReference;
+      var xyTol = 0.001 / 6371000.0 * Math.PI / 180.0; //default to 1mm in GCS decimal degree
+      if (sr.IsProjected)
+      {
+        xyTol = sr.XYTolerance;
+        _metersPerUnitDataset = sr.Unit.ConversionFactor;
+      }
+
+      // Get the coordinates based on the geometry type
+      List<MapPoint> mapPoints = new();
+      switch (geometry.GeometryType)
+      {
+        case GeometryType.Point:
+          MapPoint point = geometry as MapPoint;
+          mapPoints.Add(point);
+          break;
+        case GeometryType.Polyline:
+        case GeometryType.Polygon:
+          {
+            var parts = ((Multipart)geometry).Parts;
+            foreach (var ringSegments in parts)
+            {
+              int iSegCount = ringSegments.Count;
+              var lstLineSegments = ringSegments.ToList();
+
+              if (iSegCount <= 1)
+                continue; //already simplified
+
+              var longestSeg = 0.0;
+              foreach (Segment segment in lstLineSegments)
+                longestSeg = (segment.Length > longestSeg) ? segment.Length : longestSeg;
+
+              var envHalfDiagLength =
+                Math.Sqrt(Math.Pow(geometry.Extent.Width, 2.0) + Math.Pow(geometry.Extent.Height, 2.0)) / 2.0 * _metersPerUnitDataset;
+
+              for (int i = iSegCount - 1; i > 0; i--)
+              {
+                var  pSeg1 = lstLineSegments[i];
+                var  pSeg0 = lstLineSegments[i - 1];
+
+                //if a segment length is 0 then skip
+                if (ChordDistance(pSeg1) < xyTol * 1.5)
+                  continue;
+                if (ChordDistance(pSeg0) < xyTol * 1.5)
+                  continue;
+
+                //test that the segments are connected within XY tolerance
+                //and confirm that segments run head-to-toe.
+                var pt01 = pSeg0.EndCoordinate;
+                var pt02 = pSeg1.StartCoordinate;
+                var dist = Math.Sqrt(Math.Pow(pt01.X - pt02.X, 2.0) + Math.Pow(pt01.Y - pt02.Y, 2.0));
+                if (dist > xyTol * 1.5)
+                  continue;
+
+                //test that segments are not collapsed to the same point (side case for closed loop polylines)
+                var pt03 = pSeg0.StartPoint;
+                var pt04 = pSeg1.EndPoint;
+                dist = Math.Sqrt(Math.Pow(pt03.X - pt04.X, 2.0) + Math.Pow(pt03.Y - pt04.Y, 2.0));
+                if (dist < xyTol * 1.5)
+                  continue;
+
+                bool Is2CircularArcs;
+                bool Is2StraightLines;
+                if (pSeg0 is EllipticArcSegment && pSeg1 is EllipticArcSegment)
+                {
+                  Is2CircularArcs = true;
+                  Is2StraightLines = false;
+                  var pCirc0 = pSeg0 as EllipticArcSegment;
+                  var pCirc1 = pSeg1 as EllipticArcSegment;
+                  if (!IsShortFlatCircularArcSegment(pCirc0, 50.0, xyTol) &&
+                    !IsShortFlatCircularArcSegment(pCirc1, 50.0, xyTol))
+                  {
+                    if (pCirc0.IsCounterClockwise && !pCirc1.IsCounterClockwise)
+                      continue;
+
+                    if (!pCirc0.IsCounterClockwise && pCirc1.IsCounterClockwise)
+                      continue;
+                  }
+
+                }
+                else if (pSeg0.SegmentType == SegmentType.Line && pSeg1.SegmentType == SegmentType.Line)
+                {
+                  Is2CircularArcs = false;
+                  Is2StraightLines = true;
+                }
+                else
+                {
+                  Is2CircularArcs = false;
+                  Is2StraightLines = false;
+                }
+                bool segmentsAreTangent =
+                  IsSegmentPairTangent(pSeg0, pSeg1, MaxAllowedOffsetFromUserInMeters: 0.2, MinOffsetToleranceInMeters:0.02,
+                      MaxFeatureLengthInMeters: envHalfDiagLength, OffsetRatio: 250.00);
+
+                if (segmentsAreTangent && Is2CircularArcs)
+                {
+
+                  if (!HasSameCenterPoint(pSeg0, pSeg1) &&
+                    !IsShortFlatCircularArcSegment(pSeg0 as EllipticArcSegment, 50.0, xyTol) &&
+                    !IsShortFlatCircularArcSegment(pSeg1 as EllipticArcSegment, 50.0, xyTol))
+                    continue;
+
+                  var arcOr = ((EllipticArcSegment)pSeg0).IsCounterClockwise ?
+                    ArcOrientation.ArcCounterClockwise : ArcOrientation.ArcClockwise;
+
+                  //Detect true elliptical arcs
+                  var trueEllipticalArcs = !(((EllipticArcSegment)pSeg0).IsCircular &&
+                   ((EllipticArcSegment)pSeg1).IsCircular);
+
+                  var arcMinMaj =
+                     Math.Abs(((EllipticArcSegment)pSeg1).CentralAngle) + Math.Abs(((EllipticArcSegment)pSeg0).CentralAngle)
+                     < Math.PI ? MinorOrMajor.Minor : MinorOrMajor.Major;
+
+                  EllipticArcSegment longerSeg = pSeg0.Length > pSeg1.Length ?
+                    (EllipticArcSegment)pSeg0 : (EllipticArcSegment)pSeg1;
+
+                  //use a circular arc constructor that ensures the start and end points are the same as for the original feature
+                  EllipticArcSegment pMergedCircularOrEllipticArc;
+
+                  if (!trueEllipticalArcs)
+                    pMergedCircularOrEllipticArc =
+                      EllipticArcBuilderEx.CreateCircularArc(pSeg0.StartPoint, pSeg1.EndPoint, longerSeg.CenterPoint, arcOr);
+                  else
+                    pMergedCircularOrEllipticArc =
+                    EllipticArcBuilderEx.CreateEllipticArcSegment(pSeg0.StartPoint, pSeg1.EndPoint,
+                    longerSeg.SemiMajorAxis, longerSeg.MinorMajorRatio, longerSeg.RotationAngle, arcMinMaj, arcOr);
+
+                  //Replace two segments with one
+                  lstLineSegments.RemoveRange(i - 1, 2);
+                  lstLineSegments.Insert(i - 1, pMergedCircularOrEllipticArc);
+                }
+
+                if (segmentsAreTangent && Is2StraightLines)
+                {
+                  var pMergedLine = LineBuilderEx.CreateLineSegment(pSeg0.StartPoint, pSeg1.EndPoint);
+                  //Replace two segments with one
+                  lstLineSegments.RemoveRange(i - 1, 2);
+                  lstLineSegments.Insert(i - 1, pMergedLine);
+                }
+              }
+
+              mapPoints.Add(lstLineSegments[0].StartPoint);
+              foreach (var seg in lstLineSegments)
+                mapPoints.Add(seg.EndPoint);
+            }
+          }
+          break;
+        default:
+          ;// Unsupported geometry type.
+          break;
+      }
+      return mapPoints;
+    }
+
+    internal static bool SimplifyPolygonByLastAndFirstSegmentTangency(ref Geometry polygon, ref List<Segment> segments)
+    {
+      //check if the closing last segment of the polygon is tangent to the first segment. If it is then replace
+      //the last segment with a new merged segment
+      double _metersPerUnitDataset = 1.0;
+      bool bHasChanges = false;
+      var sr = polygon.SpatialReference;
+      var xyTol = 0.001 / 6371000.0 * Math.PI / 180.0; //default to 1mm in GCS decimal degree
+      if (sr.IsProjected)
+      {
+        xyTol = sr.XYTolerance;
+        _metersPerUnitDataset = sr.Unit.ConversionFactor;
+      }
+
+      switch (polygon.GeometryType)
+      {
+        case GeometryType.Point:
+          break;
+        case GeometryType.Polyline:
+          break;
+        case GeometryType.Polygon:
+          {
+            var parts = ((Multipart)polygon).Parts;
+            foreach (var ringSegments in parts)
+            {
+              int iSegCount = ringSegments.Count;
+              var lstLineSegments = ringSegments.ToList();
+
+              var longestSeg = 0.0;
+              foreach (Segment segment in lstLineSegments)
+                longestSeg = (segment.Length > longestSeg) ? segment.Length : longestSeg;
+
+              var firstSeg = lstLineSegments[0];
+              var lastSeg = lstLineSegments[^1];
+
+              var envHalfDiagLength =
+                Math.Sqrt(Math.Pow(polygon.Extent.Width, 2.0) + Math.Pow(polygon.Extent.Height, 2.0)) / 2.0 * _metersPerUnitDataset;
+
+              var pSeg1 = firstSeg;
+              var pSeg0 = lastSeg;
+
+              //if a segment length is 0 then skip
+              if (ChordDistance(pSeg1) < xyTol * 1.5)
+                return false;
+              if (ChordDistance(pSeg0) < xyTol * 1.5)
+                return false;
+              //test that the segments are connected within XY tolerance
+              //and confirm that segments run head-to-toe.
+              var pt01 = pSeg0.EndCoordinate;
+              var pt02 = pSeg1.StartCoordinate;
+              var dist = Math.Sqrt(Math.Pow(pt01.X - pt02.X, 2.0) + Math.Pow(pt01.Y - pt02.Y, 2.0));
+              if (dist > xyTol * 1.5)
+                return false;
+
+              //test that segments are not collapsed to the same point (side case for closed loop polylines)
+              var pt03 = pSeg0.StartPoint;
+              var pt04 = pSeg1.EndPoint;
+              dist = Math.Sqrt(Math.Pow(pt03.X - pt04.X, 2.0) + Math.Pow(pt03.Y - pt04.Y, 2.0));
+              if (dist < xyTol * 1.5)
+                return false;
+
+              bool Is2CircularArcs;
+              bool Is2StraightLines;
+              if (pSeg0 is EllipticArcSegment && pSeg1 is EllipticArcSegment)
+              {
+                Is2CircularArcs = true;
+                Is2StraightLines = false;
+                var pCirc0 = pSeg0 as EllipticArcSegment;
+                var pCirc1 = pSeg1 as EllipticArcSegment;
+                if (!IsShortFlatCircularArcSegment(pCirc0, 50.0, xyTol) &&
+                  !IsShortFlatCircularArcSegment(pCirc1, 50.0, xyTol))
+                {
+                  if (pCirc0.IsCounterClockwise && !pCirc1.IsCounterClockwise)
+                    return false;
+
+                  if (!pCirc0.IsCounterClockwise && pCirc1.IsCounterClockwise)
+                    return false;
+                }
+              }
+              else if (pSeg0.SegmentType == SegmentType.Line && pSeg1.SegmentType == SegmentType.Line)
+              {
+                Is2CircularArcs = false;
+                Is2StraightLines = true;
+              }
+              else
+              {
+                Is2CircularArcs = false;
+                Is2StraightLines = false;
+              }
+              bool segmentsAreTangent =
+                IsSegmentPairTangent(pSeg0, pSeg1, MaxAllowedOffsetFromUserInMeters: 0.2, MinOffsetToleranceInMeters: 0.02,
+                    MaxFeatureLengthInMeters: envHalfDiagLength, OffsetRatio: 250.00);
+
+              if (segmentsAreTangent && Is2CircularArcs)
+              {
+
+                if (!HasSameCenterPoint(pSeg0, pSeg1) &&
+                  !IsShortFlatCircularArcSegment(pSeg0 as EllipticArcSegment, 50.0, xyTol) &&
+                  !IsShortFlatCircularArcSegment(pSeg1 as EllipticArcSegment, 50.0, xyTol))
+                  return false;
+
+                var arcOr = ((EllipticArcSegment)pSeg0).IsCounterClockwise ?
+                  ArcOrientation.ArcCounterClockwise : ArcOrientation.ArcClockwise;
+
+                //Detect true elliptical arcs
+                var trueEllipticalArcs = !(((EllipticArcSegment)pSeg0).IsCircular &&
+                 ((EllipticArcSegment)pSeg1).IsCircular);
+
+                var arcMinMaj =
+                   Math.Abs(((EllipticArcSegment)pSeg1).CentralAngle) + Math.Abs(((EllipticArcSegment)pSeg0).CentralAngle)
+                   < Math.PI ? MinorOrMajor.Minor : MinorOrMajor.Major;
+
+                EllipticArcSegment longerSeg = pSeg0.Length > pSeg1.Length ?
+                  (EllipticArcSegment)pSeg0 : (EllipticArcSegment)pSeg1;
+
+                //use a circular arc constructor that ensures the start and end points are the same as for the original feature
+                EllipticArcSegment pMergedCircularOrEllipticArc;
+
+                if (!trueEllipticalArcs)
+                  pMergedCircularOrEllipticArc =
+                    EllipticArcBuilderEx.CreateCircularArc(pSeg0.StartPoint, pSeg1.EndPoint, longerSeg.CenterPoint, arcOr);
+                else
+                  pMergedCircularOrEllipticArc =
+                  EllipticArcBuilderEx.CreateEllipticArcSegment(pSeg0.StartPoint, pSeg1.EndPoint,
+                  longerSeg.SemiMajorAxis, longerSeg.MinorMajorRatio, longerSeg.RotationAngle, arcMinMaj, arcOr);
+
+                //Replace first and last segments with single merged segment
+                lstLineSegments.RemoveRange(iSegCount - 1, 1); //remove last segment
+                lstLineSegments.RemoveRange(0, 1); //remove first segment
+                lstLineSegments.Add(pMergedCircularOrEllipticArc); //add the merged segment on the end
+                bHasChanges = true;
+              }
+
+              if (segmentsAreTangent && Is2StraightLines)
+              {
+                var pMergedLine = LineBuilderEx.CreateLineSegment(pSeg0.StartPoint, pSeg1.EndPoint);
+                //Replace first and last segments with one
+                lstLineSegments.RemoveRange(iSegCount - 1, 1); //remove last segment
+                lstLineSegments.RemoveRange(0, 1); //remove first segment
+                lstLineSegments.Add(pMergedLine); //add the merged segment on the end
+                bHasChanges = true;
+              }
+              try
+              {
+                if (bHasChanges)
+                {
+                  var updatedPolygon = PolygonBuilderEx.CreatePolygon(lstLineSegments);
+                  if (!GeometryEngine.Instance.IsSimpleAsFeature(updatedPolygon))
+                    updatedPolygon = GeometryEngine.Instance.SimplifyAsFeature(updatedPolygon) as Polygon;
+                  polygon = updatedPolygon;
+                  segments = lstLineSegments;
+                  return true;
+                }
+              }
+              catch
+              {//what cases cause CreatePolygon to fail?
+                return false;
+              }
+            }
+          }
+          break;
+        default:
+          ;// Unsupported geometry type.
+          break;
+      }
+      return false;
+
+    }
+    #endregion
+
+    #region Graphics
+
+    internal static CIMPolygonSymbol CreatePolygonSymbol(CIMColor polygonColor, SimpleFillStyle fillStyle,
+      double outlineWidth, CIMColor outlineColor)
+    {
+      CIMSymbolReference symbolReference = new();
+      CIMStroke outLineCIMStroke =
+        new CIMSolidStroke()
+        {
+          Color = outlineColor,
+          Enable = true,
+          ColorLocked = true,
+          CapStyle = LineCapStyle.Butt,
+          JoinStyle = LineJoinStyle.Miter,
+          MiterLimit = 10,
+          Width = outlineWidth
+        };
+
+      { }
+      var cimPolygonSymbol = SymbolFactory.Instance.ConstructPolygonSymbol(polygonColor, fillStyle, outLineCIMStroke);
+      //symbolReference = cimPolygonSymbol.MakeSymbolReference();
+
+      return cimPolygonSymbol;
+    }
+
+    internal static CIMLineSymbol CreatePolylineSymbol(CIMColor lineColor, SimpleLineStyle lineStyle,
+      double lineWidth)
+    {
+      var cimLineSymbol = SymbolFactory.Instance.ConstructLineSymbol
+        (lineColor, lineWidth, lineStyle);
+      return cimLineSymbol;
+    }
+
+    internal static CIMPointSymbol CreatePointSymbol(CIMColor pointColor = null, double pointSize = 6.0, SimpleMarkerStyle pointStyle = SimpleMarkerStyle.Circle)
+    { 
+      if (pointColor == null)
+        pointColor = ColorFactory.Instance.BlueRGB;
+      var cimPointSymbol = SymbolFactory.Instance.ConstructPointSymbol(pointColor, pointSize, pointStyle);
+      return cimPointSymbol;
+    }
+
+    private static CIMLineSymbol AssignLineSymbolEndMarkers(CIMLineSymbol lineSymbol, CIMColor lineColor, double lineWidth,
+      bool useEndMarkers)
+    {
+
+      CIMMarkerPlacementAtExtremities endMarker = new()
+      {
+        AngleToLine = true,
+        ExtremityPlacement = ExtremityPlacement.Both
+      };
+
+      CIMVectorMarker dotMarker = SymbolFactory.Instance.ConstructMarker(lineColor, 1, SimpleMarkerStyle.Circle) as CIMVectorMarker;
+      var dotPolySymbol = dotMarker.MarkerGraphics[0].Symbol as CIMPolygonSymbol;
+      dotPolySymbol.SymbolLayers[0] = SymbolFactory.Instance.ConstructStroke(lineColor, 0.1, SimpleLineStyle.Solid);      //This is the outline
+      dotPolySymbol.SymbolLayers[1] = SymbolFactory.Instance.ConstructSolidFill(lineColor);                               //This is the fill
+
+      dotMarker.MarkerPlacement = endMarker;
+      endMarker.ExtremityPlacement = ExtremityPlacement.Both;
+      dotMarker.Size = 3;
+      dotMarker.AnchorPoint = MapPointBuilderEx.CreateMapPoint(0, 0);
+      dotMarker.ColorLocked = true;
+
+      var symLayersEndMarks = new CIMSymbolLayer[]
+      {
+        new CIMSolidStroke()
+        {
+            Color = lineColor,
+            Enable = true,
+            ColorLocked = true,
+            CapStyle = LineCapStyle.Butt,
+            JoinStyle = LineJoinStyle.Miter,
+            MiterLimit = 10,
+            Width = lineWidth
+        },
+        dotMarker
+      };
+      lineSymbol.SymbolLayers = symLayersEndMarks;
+      return lineSymbol;
+    }
+
+    internal static Task<CIMPolygonSymbol> CreatePolygonSymbolAsync(CIMColor polygonColor, SimpleFillStyle fillStyle,
+      double outlineWidth, CIMColor outlineColor)
+    {
+      return QueuedTask.Run<CIMPolygonSymbol>(() =>
+      {
+        CIMSymbolReference symbolReference = new();
+        CIMStroke outLineCIMStroke =
+          new CIMSolidStroke()
+          {
+            Color = outlineColor,
+            Enable = true,
+            ColorLocked = true,
+            CapStyle = LineCapStyle.Butt,
+            JoinStyle = LineJoinStyle.Miter,
+            MiterLimit = 10,
+            Width = outlineWidth
+          };
+
+        { }
+        var cimPolygonSymbol = SymbolFactory.Instance.ConstructPolygonSymbol(polygonColor, fillStyle, outLineCIMStroke);
+        return cimPolygonSymbol;
+      });
+    }
+
+    internal static Task<CIMPointSymbol> CreatePointSymbolAsync()
+    {
+      return QueuedTask.Run<CIMPointSymbol>(() =>
+      {
+        var circlePtSymbol = SymbolFactory.Instance.ConstructPointSymbol(ColorFactory.Instance.BlueRGB, 6, SimpleMarkerStyle.Circle);
+        //Modifying this point symbol with the attributes we want.
+        //getting the marker that is used to render the symbol
+        var marker = circlePtSymbol.SymbolLayers[0] as CIMVectorMarker;
+        //Getting the polygon symbol layers components in the marker
+        var polySymbol = marker.MarkerGraphics[0].Symbol as CIMPolygonSymbol;
+        //modifying the polygon's outline and width per requirements
+        polySymbol.SymbolLayers[0] = SymbolFactory.Instance.ConstructStroke(ColorFactory.Instance.BlackRGB, 2, SimpleLineStyle.Solid); //This is the outline
+        polySymbol.SymbolLayers[1] = SymbolFactory.Instance.ConstructSolidFill(ColorFactory.Instance.BlueRGB); //This is the fill
+        return circlePtSymbol;
+      });
+
+    }
+
+    #endregion
+
   }
 }
-
+#endregion

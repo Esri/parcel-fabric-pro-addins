@@ -127,7 +127,7 @@ namespace ParcelsAddin
         else
           _isPCS = false;
 
-        ParcelUtils.GetParcelPolygonFeatureLayersSelection(myParcelFabricLayer,
+        ParcelUtils.GetParcelPolygonFeatureLayersSelectionExt(MapView.Active,
           out Dictionary<FeatureLayer, List<long>> parcelPolygonLayerIds);
 
         var editOper = new EditOperation()
@@ -147,10 +147,22 @@ namespace ParcelsAddin
             var tol = 0.03 / _metersPerUnit; //3 cms
             if (!_isPCS)
               tol = Math.Atan(tol / (6378100.0 / _metersPerUnit));
+
+            #region Get hint point from northeast corner of parcel envelope
+            //use the north-east corner of the feature as a search point.
+            var insp = featlyr.Key.Inspect(oid);
+            var parcelGeom = insp["Shape"] as Geometry;
+            var northEastCnrPointEnvelopeGeom = MapPointBuilderEx.CreateMapPoint(parcelGeom.Extent.XMax, parcelGeom.Extent.YMax, pSR);
+            List<Segment> lst = new();
+            ParcelUtils.SimplifyPolygonByLastAndFirstSegmentTangency(ref parcelGeom, ref lst);
+            var bends = ParcelUtils.GetBendPointsFromGeometry(parcelGeom);
+            MapPoint hintPoint = ParcelUtils.FindNearestMapPointTo(bends, northEastCnrPointEnvelopeGeom, out double nearDistance);
+            #endregion
+
             try
             {
               parcelEdgeCollection = await myParcelFabricLayer.GetSequencedParcelEdgeInfoAsync(featlyr.Key,
-                  oid, null, tol,
+                  oid, hintPoint, tol,
                   ParcelLineToEdgeRelationship.BothVerticesMatchAnEdgeEnd |
                   ParcelLineToEdgeRelationship.StartVertexMatchesAnEdgeEnd |
                   ParcelLineToEdgeRelationship.EndVertexMatchesAnEdgeEnd |
@@ -172,6 +184,13 @@ namespace ParcelsAddin
             var isMajorList = new List<bool>();
             var traverseCourses = new List<Coordinate3D>();
             bool canTraverseCOGO = true; //optimistic outer
+
+            //bool isClosedLoop = true; //start optimistic
+            bool allLinesHaveCOGO = true; //start optimistic
+            long thisLineOID = -1;
+            bool isSameLine = false;
+            bool hasNextLineConnectivity = false;
+
             foreach (var edge in parcelEdgeCollection.Edges)
             {
               bool edgeHasCOGOConnectivity = false; //pessimistic inner
@@ -184,21 +203,36 @@ namespace ParcelsAddin
                 bool hasCOGORadius = ParcelUtils.TryGetObjectFromFieldUpperLowerCase(featAtts, "Radius", out object radius);
                 bool hasCOGOArclength = ParcelUtils.TryGetObjectFromFieldUpperLowerCase(featAtts, "ArcLength", out object arclength);
                 bool bIsCOGOLine = hasCOGODirection && hasCOGODistance;
- 
+
                 //logic to exclude unwanted lines on this edge
                 //if (!myLineInfo.HasNextLineConnectivity)
                 //  continue;
-                if (myLineInfo.EndPositionOnParcelEdge > 1)
-                  continue;
-                if (myLineInfo.EndPositionOnParcelEdge < 0)
-                  continue;
-                if (myLineInfo.StartPositionOnParcelEdge > 1)
-                  continue;
-                if (myLineInfo.StartPositionOnParcelEdge < 0)
-                  continue;
+
+                isSameLine = thisLineOID == myLineInfo.ObjectID;
+                thisLineOID = myLineInfo.ObjectID;
+                hasNextLineConnectivity = myLineInfo.HasNextLineConnectivity;
+
+                if (!isSameLine)
+                {
+
+                  if (myLineInfo.EndPositionOnParcelEdge > 1.0)
+                    continue;
+                  if (myLineInfo.EndPositionOnParcelEdge < 0.0)
+                    continue;
+                  if (myLineInfo.StartPositionOnParcelEdge > 1.0)
+                    continue;
+                  if (myLineInfo.StartPositionOnParcelEdge < 0.0)
+                    continue;
+                }
+
                 //also exclude historic lines
                 bool hasRetiredByGuid = ParcelUtils.TryGetObjectFromFieldUpperLowerCase(featAtts, "RetiredByRecord", out object guid);
                 if (hasRetiredByGuid && guid != DBNull.Value)
+                  continue;
+
+                //if we have reached the end of the parcel edge and have cogo attributes,
+                //then skip the next lines on this edge
+                if (highestPosition == 1.0 && allLinesHaveCOGO)
                   continue;
 
                 if (!bIsCOGOLine)
@@ -213,7 +247,7 @@ namespace ParcelsAddin
                     var flip = myLineInfo.IsReversed ? Math.PI : 0.0;
 
                     var radiansDirection = ((double)direction * Math.PI / 180.0) + flip;
-                    Coordinate3D vect = new ();
+                    Coordinate3D vect = new();
                     vect.SetPolarComponents(radiansDirection, 0.0, chordDistance);
                     if (ParcelUtils.ClockwiseDownStreamEdgePosition(myLineInfo) == highestPosition)
                     {//this line's start matches last line's end
@@ -230,7 +264,10 @@ namespace ParcelsAddin
                     }
                   }
                   else //not a cogo circular arc, nor a cogo line
+                  {
+                    allLinesHaveCOGO = false;
                     continue;
+                  }
                 }
                 else //this is a straight cogo line
                 {
@@ -254,7 +291,7 @@ namespace ParcelsAddin
                     highestPosition > UpstreamPos ? highestPosition : UpstreamPos;
                 }
               }
-              if (highestPosition != 1)
+              if (highestPosition != 1 && !hasNextLineConnectivity)
               //means we were not able to traverse all the way to the end of this edge
               //without a loss of COGO connection
               {
