@@ -124,6 +124,8 @@ namespace CurvesAndLines
               if (projectGeom)//project the shape to map
                 featGeom = GeometryEngine.Instance.Project(featGeomUnprojected, mapSpatRef);
 
+              ReconfigurePolygonSegments(ref featGeom);
+              
               var origGeom = featGeom.Clone(); //Copy of the original geometry
               if (!SimplifyBySegmentTangency(ref featGeom, out int removedVertexCount1, xyTol * 1.4))//do an initial tangent-definitive run
                 continue;
@@ -393,6 +395,13 @@ namespace CurvesAndLines
           VertexRemoveCount++;
         }
       }
+
+      if (SimplifyPolygonByLastAndFirstSegmentTangency(ref theGeometry, ref lstLineSegments))
+      {
+        bSegmentsChanged=true;
+        VertexRemoveCount++;
+      }
+
       //update the geometry if the segments changed
       if (bSegmentsChanged)
       {
@@ -669,12 +678,6 @@ namespace CurvesAndLines
       if (oRP < 10.0)
         oRP = 10.0;
 
-      //if (MinOffsetToleranceInMeters != 0.0)
-      //  minO = MinOffsetToleranceInMeters;
-
-      //if (MaxOffsetToleranceInMeters != 0.0)
-      //  maxO = MaxOffsetToleranceInMeters;
-
       var pointA = seg1.StartCoordinate;
       var pointB = seg1.EndCoordinate;
       var pointC = seg2.EndCoordinate;
@@ -759,10 +762,10 @@ namespace CurvesAndLines
         ptColl = (geom as Polygon).Points;
       else
         return false;
-      
+
       List<string> lst = new();
-      foreach(var pt in ptColl)
-        lst.Add(pt.X.ToString(sDecPrecFmt) + "," + pt.Y.ToString(sDecPrecFmt) );
+      foreach (var pt in ptColl)
+        lst.Add(pt.X.ToString(sDecPrecFmt) + "," + pt.Y.ToString(sDecPrecFmt));
 
       lst.RemoveAt(lst.Count - 1);
       lst.RemoveAt(0);
@@ -774,6 +777,303 @@ namespace CurvesAndLines
 
       return query.Count > 0;
     }
+
+    internal static bool SimplifyPolygonByLastAndFirstSegmentTangency(ref Geometry polygon, ref List<Segment> segments)
+    {
+      //check if the closing last segment of the polygon is tangent to the first segment. If it is then replace
+      //the last segment with a new merged segment
+      double _metersPerUnitDataset = 1.0;
+      bool bHasChanges = false;
+      var sr = polygon.SpatialReference;
+      var xyTol = 0.001 / 6371000.0 * Math.PI / 180.0; //default to 1mm in GCS decimal degree
+      if (sr.IsProjected)
+      {
+        xyTol = sr.XYTolerance;
+        _metersPerUnitDataset = sr.Unit.ConversionFactor;
+      }
+
+      switch (polygon.GeometryType)
+      {
+        case GeometryType.Point:
+          break;
+        case GeometryType.Polyline:
+          break;
+        case GeometryType.Polygon:
+          {
+            var parts = ((Multipart)polygon).Parts;
+            foreach (var ringSegments in parts)
+            {
+              int iSegCount = ringSegments.Count;
+              var lstLineSegments = ringSegments.ToList();
+
+              var longestSeg = 0.0;
+              foreach (Segment segment in lstLineSegments)
+                longestSeg = (segment.Length > longestSeg) ? segment.Length : longestSeg;
+
+              var firstSeg = lstLineSegments[0];
+              var lastSeg = lstLineSegments[^1];
+
+              var envHalfDiagLength =
+                Math.Sqrt(Math.Pow(polygon.Extent.Width, 2.0) + Math.Pow(polygon.Extent.Height, 2.0)) / 2.0 * _metersPerUnitDataset;
+
+              var pSeg1 = firstSeg;
+              var pSeg0 = lastSeg;
+
+              //if a segment length is 0 then skip
+              if (ChordDistance(pSeg1) < xyTol * 1.5)
+                return false;
+              if (ChordDistance(pSeg0) < xyTol * 1.5)
+                return false;
+              //test that the segments are connected within XY tolerance
+              //and confirm that segments run head-to-toe.
+              var pt01 = pSeg0.EndCoordinate;
+              var pt02 = pSeg1.StartCoordinate;
+              var dist = Math.Sqrt(Math.Pow(pt01.X - pt02.X, 2.0) + Math.Pow(pt01.Y - pt02.Y, 2.0));
+              if (dist > xyTol * 1.5)
+                return false;
+
+              //test that segments are not collapsed to the same point (side case for closed loop polylines)
+              var pt03 = pSeg0.StartPoint;
+              var pt04 = pSeg1.EndPoint;
+              dist = Math.Sqrt(Math.Pow(pt03.X - pt04.X, 2.0) + Math.Pow(pt03.Y - pt04.Y, 2.0));
+              if (dist < xyTol * 1.5)
+                return false;
+
+              bool Is2CircularArcs;
+              bool Is2StraightLines;
+              if (pSeg0 is EllipticArcSegment && pSeg1 is EllipticArcSegment)
+              {
+                Is2CircularArcs = true;
+                Is2StraightLines = false;
+                var pCirc0 = pSeg0 as EllipticArcSegment;
+                var pCirc1 = pSeg1 as EllipticArcSegment;
+                if (!IsShortFlatCircularArcSegment(pCirc0, 50.0, xyTol) &&
+                  !IsShortFlatCircularArcSegment(pCirc1, 50.0, xyTol))
+                {
+                  if (pCirc0.IsCounterClockwise && !pCirc1.IsCounterClockwise)
+                    return false;
+
+                  if (!pCirc0.IsCounterClockwise && pCirc1.IsCounterClockwise)
+                    return false;
+                }
+              }
+              else if (pSeg0.SegmentType == SegmentType.Line && pSeg1.SegmentType == SegmentType.Line)
+              {
+                Is2CircularArcs = false;
+                Is2StraightLines = true;
+              }
+              else
+              {
+                Is2CircularArcs = false;
+                Is2StraightLines = false;
+              }
+              bool segmentsAreTangent =
+                IsSegmentPairTangent(pSeg0, pSeg1, MaxAllowedOffsetFromUserInMeters: 0.2, MinOffsetToleranceInMeters: 0.02,
+                    MaxFeatureLengthInMeters: envHalfDiagLength, OffsetRatio: 250.00);
+
+              if (segmentsAreTangent && Is2CircularArcs)
+              {
+                if (!HasSameCenterPoint(pSeg0, pSeg1) &&
+                  !IsShortFlatCircularArcSegment(pSeg0 as EllipticArcSegment, 50.0, xyTol) &&
+                  !IsShortFlatCircularArcSegment(pSeg1 as EllipticArcSegment, 50.0, xyTol))
+                  return false;
+
+                var arcOr = ((EllipticArcSegment)pSeg0).IsCounterClockwise ?
+                  ArcOrientation.ArcCounterClockwise : ArcOrientation.ArcClockwise;
+
+                //Detect true elliptical arcs
+                var trueEllipticalArcs = !(((EllipticArcSegment)pSeg0).IsCircular &&
+                 ((EllipticArcSegment)pSeg1).IsCircular);
+
+                var arcMinMaj =
+                   Math.Abs(((EllipticArcSegment)pSeg1).CentralAngle) + Math.Abs(((EllipticArcSegment)pSeg0).CentralAngle)
+                   < Math.PI ? MinorOrMajor.Minor : MinorOrMajor.Major;
+
+                EllipticArcSegment longerSeg = pSeg0.Length > pSeg1.Length ?
+                  (EllipticArcSegment)pSeg0 : (EllipticArcSegment)pSeg1;
+
+                //use a circular arc constructor that ensures the start and end points are the same as for the original feature
+                EllipticArcSegment pMergedCircularOrEllipticArc;
+
+                if (!trueEllipticalArcs)
+                  pMergedCircularOrEllipticArc =
+                    EllipticArcBuilderEx.CreateCircularArc(pSeg0.StartPoint, pSeg1.EndPoint, longerSeg.CenterPoint, arcOr);
+                else
+                  pMergedCircularOrEllipticArc =
+                  EllipticArcBuilderEx.CreateEllipticArcSegment(pSeg0.StartPoint, pSeg1.EndPoint,
+                  longerSeg.SemiMajorAxis, longerSeg.MinorMajorRatio, longerSeg.RotationAngle, arcMinMaj, arcOr);
+
+                //Replace first and last segments with single merged segment
+                lstLineSegments.RemoveRange(iSegCount - 1, 1); //remove last segment
+                lstLineSegments.RemoveRange(0, 1); //remove first segment
+                lstLineSegments.Add(pMergedCircularOrEllipticArc); //add the merged segment on the end
+                bHasChanges = true;
+              }
+
+              if (segmentsAreTangent && Is2StraightLines)
+              {
+                var pMergedLine = LineBuilderEx.CreateLineSegment(pSeg0.StartPoint, pSeg1.EndPoint);
+                //Replace first and last segments with one
+                lstLineSegments.RemoveRange(iSegCount - 1, 1); //remove last segment
+                lstLineSegments.RemoveRange(0, 1); //remove first segment
+                lstLineSegments.Add(pMergedLine); //add the merged segment on the end
+                bHasChanges = true;
+              }
+              try
+              {
+                if (bHasChanges)
+                {
+                  var updatedPolygon = PolygonBuilderEx.CreatePolygon(lstLineSegments);
+                  if (!GeometryEngine.Instance.IsSimpleAsFeature(updatedPolygon))
+                    updatedPolygon = GeometryEngine.Instance.SimplifyAsFeature(updatedPolygon) as Polygon;
+                  polygon = updatedPolygon;
+                  segments = lstLineSegments;
+                  return true;
+                }
+              }
+              catch
+              {//what cases cause CreatePolygon to fail?
+                return false;
+              }
+            }
+          }
+          break;
+        default:
+          ;// Unsupported geometry type.
+          break;
+      }
+      return false;
+
+    }
+
+    internal static bool ReconfigurePolygonSegments(ref Geometry polygon)
+    {
+      //compare connected segment pairs, comparing lengths
+      var sr = polygon.SpatialReference;
+      var xyTol = 0.001 / 6371000.0 * Math.PI / 180.0; //default to 1mm in GCS decimal degree
+      if (sr.IsProjected)
+        xyTol = sr.XYTolerance;
+
+      // Get the AttributeFlags enumeration values
+      AttributeFlags attributeFlags = AttributeFlags.None;
+      if(polygon.HasID)
+        attributeFlags = AttributeFlags.HasID;
+      if(polygon.HasZ)
+        //attributeFlags &= AttributeFlags.HasZ;
+        attributeFlags |= AttributeFlags.HasZ;
+      if (polygon.HasM)
+        attributeFlags |= AttributeFlags.HasM;
+
+      switch (polygon.GeometryType)
+      {
+        case GeometryType.Point:
+          break;
+        case GeometryType.Polyline:
+          break;
+        case GeometryType.Polygon:
+          {
+            var parts = ((Multipart)polygon).Parts;
+            List<List<Segment>> newRingSegments = new();
+            foreach (var ringSegments in parts)
+            {
+              var lstLineSegments = ringSegments.ToList();
+              int iPos = FindLongestSegment(lstLineSegments, xyTol);
+
+              // re-sequence segments within this part
+              ResequenceSegments(ref lstLineSegments, iPos);
+              newRingSegments.Add(lstLineSegments);
+            }
+
+            // Create a polygon builder
+            PolygonBuilderEx polygonBuilder = new (newRingSegments, attributeFlags, sr);
+
+            // Build the polygon
+            Polygon resequencedPolygon = polygonBuilder.ToGeometry();
+            polygon = resequencedPolygon;
+          }
+          break;
+        default:
+          ;// Unsupported geometry type.
+        break;
+      }
+      return true;
+    }
+
+    internal static void ResequenceSegments(ref List<Segment> segments, int iPosition)
+    {
+      int segCount = segments.Count;
+      if (iPosition > segCount - 1)
+        return;
+
+      if (iPosition <= 0)
+        return;
+
+      int iRepeat = segCount - iPosition;
+
+      List<Segment> newSegs = new();
+      for (int j = 0; j < iRepeat; j++)
+      {
+        newSegs.Clear();
+        var lastSeg = segments[^1];
+        newSegs.Add(lastSeg);
+        for (int i = 0; i < segments.Count - 1; i++)
+          newSegs.Add(segments[i]);
+
+        //update segments to newsegs
+        //segments = newSegs;
+        segments.Clear();
+        for (int i = 0; i < newSegs.Count; i++)
+          segments.Add(newSegs[i]);
+      }
+    }
+
+    internal static int FindLongestSegment(List<Segment> lstLineSegments, double xyTol)
+    {
+      double longSegment = 0.0; //start at zero length
+      int Index = 0;
+      int cnt = 0;
+      foreach (Segment seg in lstLineSegments)
+      {
+        var length1 = ChordDistance(seg);
+        longSegment = length1 > longSegment ? length1 : longSegment;
+        if (longSegment == length1)
+          Index = cnt;
+        cnt++;
+      }
+      return Index;
+    }
+
+    internal static int FindIndexBySegmentPairRatioClosestToUnity(List<Segment> lstLineSegments, double xyTol)
+    {
+      double unityConverger = double.PositiveInfinity;
+      int Index = 0;
+      int iSegCount = lstLineSegments.Count;
+      for (int i = iSegCount - 1; i > 0; i--)
+      {
+        var pSeg1 = lstLineSegments[i];
+        var pSeg0 = lstLineSegments[i - 1];
+
+        //if a segment length is 0 then skip
+        //if (pSeg1.Length == 0.0) - Length property bug for some geometry
+        var length1 = ChordDistance(pSeg1);
+        if (length1 < xyTol * 1.5)
+          continue;
+
+        //if (pSeg0.Length == 0.0) - Length property bug for some geometry
+        var length0 = ChordDistance(pSeg0);
+        if (length0 < xyTol * 1.5)
+          continue;
+
+        var x = length0 / length1 > 1.0 ? length0 / length1 : length1 / length0;
+        if (x < unityConverger)
+        {
+          unityConverger = x;
+          Index = i;
+        }
+      }
+      return Index;
+    }
+
   }
 }
 
