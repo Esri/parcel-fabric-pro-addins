@@ -56,7 +56,11 @@ namespace CurvesAndLines
           userAllowedOffsetInMeters = simplifyByTangentVM.ConfigureSimplifyByTangentModel.MaxAllowableOffsetToleranceInMeters;
 
           var lstFeatLayers =
-            MapView.Active.Map.GetLayersAsFlattenedList().OfType<FeatureLayer>().ToList();
+            MapView.Active?.Map?.GetLayersAsFlattenedList()?.OfType<FeatureLayer>()?.Where(l => l != null).Where(l => (l as Layer).ConnectionStatus != ConnectionStatus.Broken)
+            .ToList();
+
+          if (lstFeatLayers == null)
+            return "No valid layers found.";
 
           Module1.GetFeatureLayerSelections(lstFeatLayers,
             out Dictionary<FeatureLayer, List<long>> layerIds);

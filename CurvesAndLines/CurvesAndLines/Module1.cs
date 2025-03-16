@@ -74,32 +74,40 @@ namespace CurvesAndLines
         mapView.Map.GetLayersAsFlattenedList().OfType<FeatureLayer>().ToList();
       
       featureVisibleLayers = new();
-      foreach (var lyr in featureLayers)
+      try
       {
-        if (IgnoreTopologyLayers)
+        foreach (var lyr in featureLayers)
         {
-          if (IsTopologyErrorLayer(lyr))
-            continue;
-          if (IsTopologyDirtyAreaLayer(lyr))
-            continue;
-        }
-
-        var fc = lyr.GetFeatureClass();
-        GeometryType geomType = fc.GetDefinition().GetShapeType();
-
-        if (!featureVisibleLayers.Contains(lyr))
-        {
-          if (lyr.IsVisibleInView(mapView))
+          if (IgnoreTopologyLayers)
           {
-            if(geomType == GeometryType.Point && IncludePointLayers)
-              featureVisibleLayers.Add(lyr);
-            if (geomType == GeometryType.Polyline && IncludeLineLayers)
-              featureVisibleLayers.Add(lyr);
-            if (geomType == GeometryType.Polygon && IncludePolygonLayers)
-              featureVisibleLayers.Add(lyr);
+            if (IsTopologyErrorLayer(lyr))
+              continue;
+            if (IsTopologyDirtyAreaLayer(lyr))
+              continue;
+          }
+
+          var fc = lyr.GetFeatureClass();
+          if (fc == null)
+            continue;
+
+          GeometryType geomType = fc.GetDefinition().GetShapeType();
+
+          if (!featureVisibleLayers.Contains(lyr))
+          {
+            if (lyr.IsVisibleInView(mapView))
+            {
+              if (geomType == GeometryType.Point && IncludePointLayers)
+                featureVisibleLayers.Add(lyr);
+              if (geomType == GeometryType.Polyline && IncludeLineLayers)
+                featureVisibleLayers.Add(lyr);
+              if (geomType == GeometryType.Polygon && IncludePolygonLayers)
+                featureVisibleLayers.Add(lyr);
+            }
           }
         }
       }
+      catch
+      {;}
     }
 
     internal static bool GetCOGOLineFeatureLayersSelection(MapView myActiveMapView,
