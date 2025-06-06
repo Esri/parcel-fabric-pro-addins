@@ -15,13 +15,13 @@
  */  
 -->
 <ArcGIS defaultAssembly="CurvesAndLines.dll" defaultNamespace="CurvesAndLines" xmlns="http://schemas.esri.com/DADF/Registry" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://schemas.esri.com/DADF/Registry file:///C:/Program%20Files/ArcGIS/Pro/bin/ArcGIS.Desktop.Framework.xsd">
-  <AddInInfo id="{28edd586-f83e-4ae7-b601-617673997c09}" version="1.4.1" desktopVersion="3.0.36057">
+  <AddInInfo id="{28edd586-f83e-4ae7-b601-617673997c09}" version="1.5.0 beta 1" desktopVersion="3.0.36057">
     <Name>Curves And Lines</Name>
     <Description>Tools to help find and edit features based on their geometry segment characteristics.</Description>
     <Image>Images\FabricAddinDesktop32.png</Image>
     <Author>Esri Parcel Team</Author>
     <Company>Esri</Company>
-    <Date>03/15/2025 9:00:00 PM</Date>
+    <Date>06/04/2025 2:00:00 PM</Date>
     <Subject>Editing, Geometry</Subject>
     <!-- Note subject can be one or more of these topics:
                     Content, Framework, Editing, Geodatabase, Geometry, Geoprocessing, Layouts, Map Authoring, Map Exploration -->
@@ -48,7 +48,8 @@
         </group>
         <group id="CurvesAndLines_Group1" caption="Selection" appearsOnAddInTab="false" launcherButtonID="esri_mapping_openSelectionOptionsButton" keytip="S">
           <!-- host controls within groups -->
-          <button refID="CurvesAndLines_SelectMultiSegmentLines" size="large" />
+					<button refID="CurvesAndLines_SelectLinesWithBends" size="large" />					
+					<button refID="CurvesAndLines_SelectMultiSegmentLines" size="large" />
           <button refID="CurvesAndLines_SelectCircularArcs" size="large" />
           <button refID="CurvesAndLines_SelectStraightLines" size="large" />
           <button refID="CurvesAndLines_SelectBeziers" size="middle" />
@@ -60,8 +61,8 @@
           <button refID="esri_mapping_clearSelectionButton" size="small" />
         </group>
         <group id="CurvesAndLines_Group2" caption="Modify" appearsOnAddInTab="false" keytip="M">
-					<splitButton refID="CurvesAndLines_SimplifyByTangentSplitButton" />
-					<button refID="CurvesAndLines_SimplifyBySingleSegmentCOGO" size="large" />
+          <splitButton refID="CurvesAndLines_SimplifyByTangentSplitButton" />
+          <button refID="CurvesAndLines_SimplifyBySingleSegmentCOGO" size="large" />
           <button refID="esri_editing_SimplifyBySLACAButton" size="small" />
           <button refID="esri_editing_PlanarizeLineFeatures" size="small" />
           <button refID="esri_editing_splitIntoCOGOLines" size="small" />
@@ -102,13 +103,16 @@
         <button id="CurvesAndLines_ConfigureSimplifyByTangentSegments" caption="Configure..." className="ConfigureSimplifyByTangentSegments" loadOnClick="true" smallImage="pack://application:,,,/ArcGIS.Desktop.Resources;component/Images/CogWheel16.png" largeImage="pack://application:,,,/ArcGIS.Desktop.Resources;component/Images/CogWheel32.png">
           <tooltip heading="Configure Simplify By Tangent Segments">Change the maximum allowable offset for the simplified geometry.<disabledText /></tooltip>
         </button>
+        <button id="CurvesAndLines_SelectLinesWithBends" caption="Select Lines With Bends" className="SelectLinesWithBends" loadOnClick="true" smallImage="Images\LinesWithBendsSelect16.png" largeImage="Images\LinesWithBendsSelect32.png">
+          <tooltip heading="Select Lines With Bends">Select line features with bends.<disabledText /></tooltip>
+        </button>
       </controls>
-			<splitButtons>
-				<splitButton id="CurvesAndLines_SimplifyByTangentSplitButton">
-					<button refID="CurvesAndLines_SimplifyByTangentSegments" />
-					<button refID="CurvesAndLines_ConfigureSimplifyByTangentSegments" />
-				</splitButton>
-			</splitButtons>			
+      <splitButtons>
+        <splitButton id="CurvesAndLines_SimplifyByTangentSplitButton">
+          <button refID="CurvesAndLines_SimplifyByTangentSegments" />
+          <button refID="CurvesAndLines_ConfigureSimplifyByTangentSegments" />
+        </splitButton>
+      </splitButtons>
     </insertModule>
   </modules>
 </ArcGIS>

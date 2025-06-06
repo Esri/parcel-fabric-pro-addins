@@ -21,6 +21,8 @@
     <None Remove="DarkImages\FabricAddInDesktop32.png" />
     <None Remove="DarkImages\LineSelect16.png" />
     <None Remove="DarkImages\LineSelect32.png" />
+    <None Remove="DarkImages\LinesWithBendsSelect16.png" />
+    <None Remove="DarkImages\LinesWithBendsSelect32.png" />
     <None Remove="DarkImages\MultiPartSelect16.png" />
     <None Remove="DarkImages\MultiPartSelect32.png" />
     <None Remove="DarkImages\MultiSegmentSelect16.png" />
@@ -38,6 +40,8 @@
     <None Remove="Images\FabricAddInDesktop32.png" />
     <None Remove="Images\LineSelect16.png" />
     <None Remove="Images\LineSelect32.png" />
+    <None Remove="Images\LinesWithBendsSelect16.png" />
+    <None Remove="Images\LinesWithBendsSelect32.png" />
     <None Remove="Images\MultiPartSelect16.png" />
     <None Remove="Images\MultiPartSelect32.png" />
     <None Remove="Images\MultiSegmentSelect16.png" />
@@ -136,6 +140,8 @@
     <Content Include="DarkImages\FabricAddInDesktop32.png" />
     <Content Include="DarkImages\LineSelect16.png" />
     <Content Include="DarkImages\LineSelect32.png" />
+    <Content Include="DarkImages\LinesWithBendsSelect16.png" />
+    <Content Include="DarkImages\LinesWithBendsSelect32.png" />
     <Content Include="DarkImages\MultiPartSelect16.png" />
     <Content Include="DarkImages\MultiPartSelect32.png" />
     <Content Include="DarkImages\MultiSegmentSelect16.png" />
@@ -153,6 +159,8 @@
     <Content Include="Images\FabricAddInDesktop32.png" />
     <Content Include="Images\LineSelect16.png" />
     <Content Include="Images\LineSelect32.png" />
+    <Content Include="Images\LinesWithBendsSelect16.png" />
+    <Content Include="Images\LinesWithBendsSelect32.png" />
     <Content Include="Images\MultiPartSelect16.png" />
     <Content Include="Images\MultiPartSelect32.png" />
     <Content Include="Images\MultiSegmentSelect16.png" />
