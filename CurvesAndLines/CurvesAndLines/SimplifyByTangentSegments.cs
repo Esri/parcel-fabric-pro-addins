@@ -128,55 +128,24 @@ namespace CurvesAndLines
               if (projectGeom)//project the shape to map
                 featGeom = GeometryEngine.Instance.Project(featGeomUnprojected, mapSpatRef);
 
-              // Check if there are multi-parts and then use SimplifyBySegmentTangencyEx function
-              // This is an initial safety measure to ensure single parts continue to use the original function,
-              // in future updates single part features will also use the SimplifyBySegmentTangencyEx function.
-              bool hasMultipleParts = ((Multipart)featGeom).Parts.Count > 1;
-              if(!hasMultipleParts)
-                ReconfigurePolygonSegments(ref featGeom); // in the new function this is used directly on each part
-              
               var origGeom = featGeom.Clone(); //Copy of the original geometry
 
-              if (!hasMultipleParts)
-              {
-                if (!SimplifyBySegmentTangency(ref featGeom, out int removedVertexCount1, xyTol * 1.4))//do an initial tangent-definitive run
-                  continue;
-                if (userAllowedOffsetInMeters > 0.001
-                      && SimplifyBySegmentTangency(ref featGeom, out int removedVertexCount2, userAllowedOffsetInMeters))
-                {// do the second run if the user tolerance is greater than XY Tolerance
-                  int removedVertexCount = removedVertexCount1 + removedVertexCount2;
-                  if (removedVertexCount > 0)
+              if (!SimplifyBySegmentTangencyEx(ref featGeom, out int removedVertexCount1, xyTol * 1.4))//do an initial tangent-definitive run
+                continue;
+              if (userAllowedOffsetInMeters > 0.001
+                    && SimplifyBySegmentTangencyEx(ref featGeom, out int removedVertexCount2, userAllowedOffsetInMeters))
+              {// do the second run if the user tolerance is greater than XY Tolerance
+                int removedVertexCount = removedVertexCount1 + removedVertexCount2;
+                if (removedVertexCount > 0)
+                {
+                  if (!IsDifferentGeometry(userAllowedOffsetInMeters, origGeom, featGeom))
                   {
-                    if (!IsDifferentGeometry(userAllowedOffsetInMeters, origGeom, featGeom))
-                    {
-                      cps.Progressor.Value += (uint)removedVertexCount;
-                      editOper.Modify(featLyr, feature.GetObjectID(), featGeom);
-                      featureCount++;
-                    }
-                    else
-                      System.Diagnostics.Debug.Assert(false, "Geometry vertex difference beyond allowable change.");
+                    cps.Progressor.Value += (uint)removedVertexCount;
+                    editOper.Modify(featLyr, feature.GetObjectID(), featGeom);
+                    featureCount++;
                   }
-                }
-              }
-              else //identical code, except uses the new SimplifyBySegmentTangencyEx function
-              {
-                if (!SimplifyBySegmentTangencyEx(ref featGeom, out int removedVertexCount1, xyTol * 1.4))//do an initial tangent-definitive run
-                  continue;
-                if (userAllowedOffsetInMeters > 0.001
-                      && SimplifyBySegmentTangencyEx(ref featGeom, out int removedVertexCount2, userAllowedOffsetInMeters))
-                {// do the second run if the user tolerance is greater than XY Tolerance
-                  int removedVertexCount = removedVertexCount1 + removedVertexCount2;
-                  if (removedVertexCount > 0)
-                  {
-                    if (!IsDifferentGeometry(userAllowedOffsetInMeters, origGeom, featGeom))
-                    {
-                      cps.Progressor.Value += (uint)removedVertexCount;
-                      editOper.Modify(featLyr, feature.GetObjectID(), featGeom);
-                      featureCount++;
-                    }
-                    else
-                      System.Diagnostics.Debug.Assert(false,"Geometry vertex difference beyond allowable change.");
-                  }
+                  else
+                    System.Diagnostics.Debug.Assert(false, "Geometry vertex difference beyond allowable change.");
                 }
               }
               if (cps.Progressor.CancellationToken.IsCancellationRequested)
@@ -336,9 +305,9 @@ namespace CurvesAndLines
             if (iSegCount == 0)
               continue; //no segments
 
-            var longestSeg = 0.0;
-            foreach (Segment segment in partSegments)
-              longestSeg = (segment.Length > longestSeg) ? segment.Length : longestSeg;
+            //var longestSeg = 0.0;
+            //foreach (Segment segment in partSegments)
+            //  longestSeg = (segment.Length > longestSeg) ? segment.Length : longestSeg;
 
             var envHalfDiagLength =
               Math.Sqrt(Math.Pow(polylineForThisPart.Extent.Width, 2.0) + Math.Pow(polylineForThisPart.Extent.Height, 2.0)) / 2.0 * _metersPerUnitDataset;
@@ -549,6 +518,8 @@ namespace CurvesAndLines
     internal static bool SimplifyBySegmentTangency(ref Geometry theGeometry, out int VertexRemoveCount,
       double maxAllowedOffsetInMeters = 2.0)
     {
+      //this is older code, and works on single parts only (now unused, but keeping in case new function has regressions)
+
       //Short and flat circular arc segment parameter detection settings
       double circularArcRadiusPrecisionNoise = 1.25; //used to determine if circular arcs share a common centerpoint
       double flatShortCircularArcToleranceFactor = 50.0; //multiplied by XY tolerance, 50 represents 5cms arclength
@@ -605,9 +576,9 @@ namespace CurvesAndLines
       if (iSegCount == 0)
         return false; //no segments
 
-      var longestSeg = 0.0;
-      foreach (Segment segment in lstLineSegments)
-        longestSeg = (segment.Length > longestSeg) ? segment.Length : longestSeg;
+      //var longestSeg = 0.0;
+      //foreach (Segment segment in lstLineSegments)
+      //  longestSeg = (segment.Length > longestSeg) ? segment.Length : longestSeg;
 
       var envHalfDiagLength =
         Math.Sqrt(Math.Pow(theGeometry.Extent.Width, 2.0) + Math.Pow(theGeometry.Extent.Height, 2.0)) / 2.0 * _metersPerUnitDataset;
