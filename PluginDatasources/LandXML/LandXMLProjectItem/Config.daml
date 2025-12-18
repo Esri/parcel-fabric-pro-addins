@@ -1,0 +1,58 @@
+﻿<ArcGIS defaultAssembly="LandXMLProjectItem.dll" defaultNamespace="LandXMLProjectItem" xmlns="http://schemas.esri.com/DADF/Registry" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://schemas.esri.com/DADF/Registry file:///C:/Program%20Files/ArcGIS/Pro/bin/ArcGIS.Desktop.Framework.xsd">
+  <AddInInfo id="{5efd72d4-ba23-4ec6-91f7-0f1210dc1e25}" version="0.1" desktopVersion="3.4.55405" product="ArcGISPro">
+    <Name>LandXMLProjectItem</Name>
+    <Description>LandXMLProjectItem description</Description>
+    <Image>Images\AddinDesktop32.png</Image>
+    <Author>Esri Parcel Team</Author>
+    <Company>Esri</Company>
+    <Date>5/19/2025 11:35:29 AM</Date>
+    <Subject>Framework</Subject>
+    <!-- Note subject can be one or more of these topics:
+                    Content, Framework, Editing, Geodatabase, Geometry, Geoprocessing, Layouts, Map Authoring, Map Exploration -->
+  </AddInInfo>
+  <modules>
+    <insertModule id="LandXMLProjectItem_Module" className="Module1" autoLoad="false" caption="Module1">
+      <!-- uncomment to have the control hosted on a separate tab-->
+      <controls>
+        <!-- add your controls here -->
+        <button id="LandXMLProjectItem_LandXMLProjectItem_AddToProject" caption="Add To Project" className="AddToProjectLandXMLProjectItem" loadOnClick="true" smallImage="GenericAdd16" largeImage="GenericAdd32">
+          <tooltip heading="Add To Project">Add an existing LandXML (.LXML) file to the project. The project saves a reference to the LandXML file.<disabledText /></tooltip>
+        </button>
+				<button id="LandXMLProjectItem_LandXMLProjectItem_RemoveFromProject" caption="Remove From Project" className="RemoveFromProjectLandXMLProjectItem" loadOnClick="true" smallImage="GenericDeleteBlack16" largeImage="GenericDeleteBlack32">
+					<tooltip heading="Remove From Project">
+						Remove LandXML (.LXML) file from the project.<disabledText />
+					</tooltip>
+				</button>				
+      </controls>
+      <menus>
+        <menu id="LandXMLProjectItemContainer_ContextMenu" caption="LandXMLProjectItemContainer_Menu">
+          <button refID="esri_folderConnectionAddButton" />
+        </menu>
+        <menu id="LandXMLProjectItem_LandXMLProjectItem_ContextMenu" caption="LandXMLProjectItem_Menu">
+          <button refID="LandXMLProjectItem_LandXMLProjectItem_AddToProject" />
+					<button refID="LandXMLProjectItem_LandXMLProjectItem_RemoveFromProject" />
+        </menu>
+      </menus>
+    </insertModule>
+  </modules>
+  <categories>
+    <updateCategory refID="esri_customItems">
+      <insertComponent id="LandXMLProjectItem_LandXMLProjectItem" className="LandXMLProjectItem" containerType="LandXMLProjectItemContainer">
+        <!--TODO: Modify the fileExtension attribute to your unique custom item's file extension.-->
+        <!--You cannot use any file extensions known to Pro and Geoprocessing.-->
+        <content displayName="LandXML file" fileExtension="lxml" isContainer="false" keywords="LandXMLProjectItem" contextMenuID="LandXMLProjectItem_LandXMLProjectItem_ContextMenu">
+          <filterFlags>
+            <!--Change this flag as needed. See FilterFlag enum. Example: AddToMap, DontBrowseFiles...-->
+						<!--<type id="File" />-->
+						<type id="AddToMap" />
+          </filterFlags>
+        </content>
+      </insertComponent>
+    </updateCategory>
+    <updateCategory refID="esri_core_projectContainers">
+      <insertComponent id="LandXMLProjectItem_LandXMLProjectItem_Container" className="LandXMLProjectItemContainer" insert="before" placeWith="esri_geodatabase_folderConnectionContainer">
+        <content type="LandXMLProjectItemContainer" displayName="LandXML Files" contextMenu="LandXMLProjectItemContainer_ContextMenu" />
+      </insertComponent>
+    </updateCategory>
+  </categories>
+</ArcGIS>

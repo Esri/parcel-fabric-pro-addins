@@ -1,0 +1,70 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <NoWarn>CA1416</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Remove="SpatialReferences\GDA1994 MGA Zone 54.prj" />
+    <None Remove="SpatialReferences\GDA1994 MGA Zone 55.prj" />
+    <None Remove="SpatialReferences\GDA1994 MGA Zone 56.prj" />
+    <None Remove="SpatialReferences\GDA1994.prj" />
+    <None Remove="SpatialReferences\GDA2020 MGA Zone 54.prj" />
+    <None Remove="SpatialReferences\GDA2020 MGA Zone 55.prj" />
+    <None Remove="SpatialReferences\GDA2020 MGA Zone 56.prj" />
+    <None Remove="SpatialReferences\GDA2020.prj" />
+  </ItemGroup>
+	<ItemGroup>
+    <Reference Include="ArcGIS.Core.dll">
+      <HintPath>C:\Program Files\ArcGIS\Pro\bin\ArcGIS.Core.dll</HintPath>
+      <CopyLocal>False</CopyLocal>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="ArcGIS.CoreHost">
+      <HintPath>C:\Program Files\ArcGIS\Pro\bin\ArcGIS.CoreHost.dll</HintPath>
+      <CopyLocal>False</CopyLocal>
+      <Private>False</Private>
+    </Reference>
+	</ItemGroup>
+  <ItemGroup>
+    <Content Include="Config.xml" />
+    <Content Include="SpatialReferences\GDA1994 MGA Zone 54.prj">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="SpatialReferences\GDA1994 MGA Zone 55.prj">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="SpatialReferences\GDA1994 MGA Zone 56.prj">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="SpatialReferences\GDA1994.prj">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="SpatialReferences\GDA2020 MGA Zone 54.prj">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="SpatialReferences\GDA2020 MGA Zone 55.prj">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="SpatialReferences\GDA2020 MGA Zone 56.prj">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="SpatialReferences\GDA2020.prj">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>   
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Properties\launchSettings.json" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="RBush" Version="4.0.0" />
+    <PackageReference Include="Tesseract" Version="5.2.0" />
+  </ItemGroup>
+  <PropertyGroup>
+    <PackageType>Plugin</PackageType>
+  </PropertyGroup>
+  <Import Project="C:\Program Files\ArcGIS\Pro\bin\Esri.ProApp.SDK.Desktop.targets" Condition="Exists('C:\Program Files\ArcGIS\Pro\bin\Esri.ProApp.SDK.Desktop.targets') AND !Exists('Esri.ArcGISPro.Extensions.targets')" />
+ </Project>
