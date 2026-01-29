@@ -179,8 +179,8 @@ namespace ParcelsAddin
                   //  chordLine.Angle, chordLine.Length / 2.0);
 
                   specialCaseUpdateDirectionOnly = 
-                    (180.0/Math.PI * Math.Abs(pCircArc.Length / pCircArc.SemiMajorAxis))<1.0;
-                  //central angle based on GEOMETRY is less than 1° means flat circular arc
+                    (180.0/Math.PI * Math.Abs(pCircArc.CentralAngle))<0.1;
+                  //central angle based on GEOMETRY is less than 0.1° means flat circular arc
                 }
               }
 
