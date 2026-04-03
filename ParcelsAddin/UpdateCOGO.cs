@@ -82,10 +82,18 @@ namespace ParcelsAddin
           if (cimDefinition == null) return "Could not find an active map.";
           var cimG2G = cimDefinition.GroundToGridCorrection;
 
+          bool useG2G = false;
+          double scaleFactor = 1.0;
+          double directionOffsetCorrection = 0.0;
+
           var mapSpatRef = MapView.Active.Map.SpatialReference;
 
-          double scaleFactor = cimG2G.GetConstantScaleFactor();
-          double directionOffsetCorrection = cimG2G.GetDirectionOffset();
+          if (cimG2G != null)
+          {
+            scaleFactor = cimG2G.GetConstantScaleFactor();
+            directionOffsetCorrection = cimG2G.GetDirectionOffset();
+            useG2G = cimG2G.Enabled;
+          }
 
           var editOper = new EditOperation()
           {
@@ -205,7 +213,10 @@ namespace ParcelsAddin
                 if (isControlledByFabric)
                 {
                   if (hasCOGOTypeFld) COGOAttributes.Add("cogotype", 2); // always 'FromGeometry'
-                  COGOAttributes.Add("rotation", directionOffsetCorrection);
+                  if (useG2G)
+                    COGOAttributes.Add("rotation", directionOffsetCorrection);
+                  else
+                    COGOAttributes.Add("rotation", DBNull.Value);
                 }
               }
               else if (bUpdateDirections &&
@@ -218,7 +229,10 @@ namespace ParcelsAddin
                   {
                     if (hasCOGOTypeFld && !COGOAttributes.ContainsKey("cogotype"))
                       COGOAttributes.Add("cogotype", 2); // always 'FromGeometry'
-                    COGOAttributes.Add("rotation", directionOffsetCorrection);
+                    if (useG2G)
+                      COGOAttributes.Add("rotation", directionOffsetCorrection);
+                    else
+                      COGOAttributes.Add("rotation", DBNull.Value);
                   }
                 }
                 else if (bDirectionsUpdateByToleranceDifference && currentDirObj != DBNull.Value)
@@ -249,7 +263,10 @@ namespace ParcelsAddin
                     {
                       if (hasCOGOTypeFld && !COGOAttributes.ContainsKey("cogotype"))
                         COGOAttributes.Add("cogotype", 2); // always 'FromGeometry'
-                      COGOAttributes.Add("rotation", directionOffsetCorrection);
+                      if (useG2G)
+                        COGOAttributes.Add("rotation", directionOffsetCorrection);
+                      else
+                        COGOAttributes.Add("rotation", DBNull.Value);
                     }
                   }
                 }
@@ -267,8 +284,16 @@ namespace ParcelsAddin
                   {
                     if (hasCOGOTypeFld && !COGOAttributes.ContainsKey("cogotype"))
                       COGOAttributes.Add("cogotype", 2); // always 'FromGeometry'
-                    COGOAttributes.Add("scale", scaleFactor);
-                    COGOAttributes.Add("iscogoground", 1);
+                    if (useG2G)
+                    {
+                      COGOAttributes.Add("scale", scaleFactor);
+                      COGOAttributes.Add("iscogoground", 1);
+                    }
+                    else
+                    {
+                      COGOAttributes.Add("scale", DBNull.Value);
+                      COGOAttributes.Add("iscogoground", DBNull.Value);
+                    }
                   }
                 }
                 else if (bUpdateDistances &&
@@ -283,8 +308,17 @@ namespace ParcelsAddin
                     {
                       if (hasCOGOTypeFld && !COGOAttributes.ContainsKey("cogotype"))
                         COGOAttributes.Add("cogotype", 2); // always 'FromGeometry'
-                      COGOAttributes.Add("scale", scaleFactor);
-                      COGOAttributes.Add("iscogoground", 1);
+
+                      if (useG2G)
+                      {
+                        COGOAttributes.Add("scale", scaleFactor);
+                        COGOAttributes.Add("iscogoground", 1);
+                      }
+                      else
+                      {
+                        COGOAttributes.Add("scale", DBNull.Value);
+                        COGOAttributes.Add("iscogoground", DBNull.Value);
+                      }
                     }
                   }
                   else if (bDistancesUpdateByToleranceDifference &&
@@ -305,8 +339,17 @@ namespace ParcelsAddin
                         {
                           if (hasCOGOTypeFld && !COGOAttributes.ContainsKey("cogotype"))
                             COGOAttributes.Add("cogotype", 2); // always 'FromGeometry'
-                          COGOAttributes.Add("scale", scaleFactor);
-                          COGOAttributes.Add("iscogoground", 1);
+                          
+                          if (useG2G)
+                          {
+                            COGOAttributes.Add("scale", scaleFactor);
+                            COGOAttributes.Add("iscogoground", 1);
+                          }
+                          else
+                          {
+                            COGOAttributes.Add("scale", DBNull.Value);
+                            COGOAttributes.Add("iscogoground", DBNull.Value);
+                          }
                         }
                       }
                     }
@@ -320,8 +363,17 @@ namespace ParcelsAddin
                       {
                         if (hasCOGOTypeFld && !COGOAttributes.ContainsKey("cogotype"))
                           COGOAttributes.Add("cogotype", 2); // always 'FromGeometry'
-                        COGOAttributes.Add("scale", scaleFactor);
-                        COGOAttributes.Add("iscogoground", 1);
+                        
+                        if (useG2G)
+                        {
+                          COGOAttributes.Add("scale", scaleFactor);
+                          COGOAttributes.Add("iscogoground", 1);
+                        }
+                        else
+                        {
+                          COGOAttributes.Add("scale", DBNull.Value);
+                          COGOAttributes.Add("iscogoground", DBNull.Value);
+                        }
                       }
                     }
                   }
@@ -343,8 +395,17 @@ namespace ParcelsAddin
                         {
                           if (hasCOGOTypeFld && !COGOAttributes.ContainsKey("cogotype"))
                             COGOAttributes.Add("cogotype", 2); // always 'FromGeometry'
-                          COGOAttributes.Add("scale", scaleFactor);
-                          COGOAttributes.Add("iscogoground", 1);
+                          
+                          if (useG2G)
+                          {
+                            COGOAttributes.Add("scale", scaleFactor);
+                            COGOAttributes.Add("iscogoground", 1);
+                          }
+                          else
+                          {
+                            COGOAttributes.Add("scale", DBNull.Value);
+                            COGOAttributes.Add("iscogoground", DBNull.Value);
+                          }
                         }
                       }
                     }
@@ -357,8 +418,17 @@ namespace ParcelsAddin
                       {
                         if (hasCOGOTypeFld && !COGOAttributes.ContainsKey("cogotype"))
                           COGOAttributes.Add("cogotype", 2); // always 'FromGeometry'
-                        COGOAttributes.Add("scale", scaleFactor);
-                        COGOAttributes.Add("iscogoground", 1);
+
+                        if (useG2G)
+                        {
+                          COGOAttributes.Add("scale", scaleFactor);
+                          COGOAttributes.Add("iscogoground", 1);
+                        }
+                        else
+                        {
+                          COGOAttributes.Add("scale", DBNull.Value);
+                          COGOAttributes.Add("iscogoground", DBNull.Value);
+                        }
                       }
                     }
                   }
