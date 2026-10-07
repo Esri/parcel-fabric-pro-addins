@@ -33,8 +33,9 @@ namespace ParcelsAddin
         PropertyChanged(this, new PropertyChangedEventArgs(propertyName));
       }
     }
-    #endregion
+        #endregion
 
+    private bool _updateStatedArea;
     private string _areaUnitName;
     private List<string> _areaUnitsNameList;
     private List<long> _areaUnitsCodeList;
@@ -48,6 +49,20 @@ namespace ParcelsAddin
     // 109402); // use acre
     // 109405); //use square foot
     // 109404); //use square meter
+    
+    public bool UpdateStatedArea 
+    {
+      get
+      { 
+        return _updateStatedArea;
+      }
+      set 
+      {
+        _updateStatedArea= value;
+        //SyncAreaProperties();
+        NotifyPropertyChanged(nameof(UpdateStatedArea));
+      }
+    }
     public string AreaUnitName
     {
       get

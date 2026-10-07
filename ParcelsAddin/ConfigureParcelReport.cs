@@ -34,15 +34,17 @@ using ArcGIS.Desktop.Mapping;
 
 namespace ParcelsAddin
 {
-	internal class ConfigureParcelReport : Button
-	{
-    private readonly ConfigureParcelReportViewModel _VM = new();
+  internal class ConfigureParcelReport : Button
+  {
     protected override void OnClick()
     {
+      ConfigureParcelReportViewModel _VM = new();
       #region Collect parameters from dialog and save to settings
-      ConfigureParcelReportDialog ConfigureParcelReportInput = new ();
-      ConfigureParcelReportInput.Owner = FrameworkApplication.Current.MainWindow;
-      ConfigureParcelReportInput.DataContext = _VM;
+      var ConfigureParcelReportInput = new ConfigureParcelReportDialog
+      {
+        Owner = FrameworkApplication.Current.MainWindow,
+        DataContext = _VM
+      };
 
       if (ConfigureParcelReportInput.ShowDialog() == true)
       {

@@ -22,7 +22,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:extensions="clr-namespace:ArcGIS.Desktop.Extensions;assembly=ArcGIS.Desktop.Extensions"
         mc:Ignorable="d"
-        Title="Configure Area Units" Height="150" Width="300" ResizeMode="NoResize"
+        Title="Configure" Height="160" Width="300" ResizeMode="NoResize"
         WindowStartupLocation="CenterOwner"
         x:Name="ConfigureAreaUnitsInput">
 
@@ -45,33 +45,42 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
-        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,3,0,0" HorizontalAlignment="Right" Grid.ColumnSpan="2">
-            <TextBlock Margin="0,3,10,0"  Text="Large parcel area unit" 
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="20,3,0,0" HorizontalAlignment="Left" Grid.ColumnSpan="1">
+          <CheckBox x:Name="chkUpdateStatedArea" Content="Update stated area" IsChecked ="{Binding Path=ConfigureAreaUnitsModel.UpdateStatedArea, UpdateSourceTrigger=PropertyChanged}"
+              Background="{DynamicResource Esri_BackgroundHoverSelectedBrush}" 
+              Foreground="{DynamicResource Esri_TextControlBrush}" 
+              BorderBrush="{DynamicResource Esri_BorderHoverBrush}"></CheckBox>
+        </StackPanel>
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,3,0,0" HorizontalAlignment="Right" Grid.ColumnSpan="2">
+          <TextBlock Margin="0,3,10,0"  Text="Large parcel area unit" 
                        ToolTip="Choose the area unit for parcels that are &#x0a;larger than the area you specify below."
                        Style="{DynamicResource Esri_TextBlockRegular}"/>
-            <ComboBox x:Name="LargeParcelAreaUnit" IsEditable="False" Margin="0,3,0,3" Height="20" Width="100" 
+          <ComboBox x:Name="LargeParcelAreaUnit" IsEditable="False" Margin="0,3,0,3" Height="20" Width="100" 
+                      IsEnabled="{Binding ElementName=chkUpdateStatedArea, Path=IsChecked}"                      
                       ItemsSource="{Binding Path=ConfigureAreaUnitsModel.AreaUnitsNameList}"
                       SelectedItem="{Binding Path=ConfigureAreaUnitsModel.AreaUnitName, UpdateSourceTrigger=PropertyChanged}"
                       ToolTip="Choose the area unit for parcels that are &#x0a;larger than the area you specify below."
                       ></ComboBox>
         </StackPanel>
-
-        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,3,0,0" HorizontalAlignment="Right" Grid.ColumnSpan="2">
-            <TextBlock Margin="0,3,10,0" ToolTip="Enter the area in the units chosen above &#x0a;to define large parcels."
+        <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,3,0,0" HorizontalAlignment="Right" Grid.ColumnSpan="2">
+          <TextBlock Margin="0,3,10,0" ToolTip="Enter the area in the units chosen above &#x0a;to define large parcels."
                        Text="Large parcel area" Style="{DynamicResource Esri_TextBlockRegular}"/>
-            <TextBox x:Name="LargeParcelArea" Width="100" TextAlignment="Right"
-                     Text="{Binding Path=ConfigureAreaUnitsModel.LargeAreaValueText, UpdateSourceTrigger=PropertyChanged}"/>
+          <TextBox x:Name="LargeParcelArea" Width="100" TextAlignment="Right"
+                     IsEnabled="{Binding ElementName=chkUpdateStatedArea, Path=IsChecked}" 
+                     Text="{Binding Path=ConfigureAreaUnitsModel.LargeAreaValueText, 
+                     UpdateSourceTrigger=PropertyChanged}"/>
         </StackPanel>
 
-        <StackPanel Margin="0,15,-20,0" Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Grid.ColumnSpan="1">
-            <Button IsDefault="True"
+        <StackPanel Margin="0,15,-20,0" Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Grid.ColumnSpan="1">
+          <Button IsDefault="True"
               Content="OK" Width="60" Command="{Binding Path=OKCommand}"
               CommandParameter="{Binding ElementName=ConfigureAreaUnitsInput}"
               Style="{StaticResource Esri_SimpleButton}" />
         </StackPanel>
-        <StackPanel Margin="0,15,0,0" Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Grid.ColumnSpan="2">
-            <Button IsDefault="False" IsCancel="True"
+        <StackPanel Margin="0,15,0,0" Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Grid.ColumnSpan="2">
+          <Button IsDefault="False" IsCancel="True"
               Content="Cancel" Width="60"
               Style="{StaticResource Esri_SimpleButton}" />
         </StackPanel>        

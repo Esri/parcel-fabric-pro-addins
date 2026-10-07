@@ -28,6 +28,8 @@ namespace ParcelsAddin
   internal class ConfigureAreaUnitsViewModel : PropertyChangedBase
   {
     private ConfigureAreaUnitsModel _ConfigureAreaUnitsModel;
+    private readonly bool _updateStatedArea;
+    private readonly string _updateStatedAreaText;
     private readonly string _areaUnitName;
     private readonly string _areaValueText;
     private List<string> _areaUnitsNameList;
@@ -48,6 +50,8 @@ namespace ParcelsAddin
 
     public ConfigureAreaUnitsViewModel()
     {
+      _updateStatedArea = true;
+      _updateStatedAreaText = "True";
       _areaUnitsNameList = new List<string> { "Acres", "Hectares", "Square Meters", "Square Feet" };
       _dictAreaUnitsCodeLookup = new Dictionary<string, long>();
       _dictAreaUnitsCodeLookup.Add("Hectares", 109401);
@@ -57,8 +61,7 @@ namespace ParcelsAddin
 
       _areaUnitName = "Acres";
       _largeParcelAreaCode = 109402;
-
-
+      
       string sParamString = ConfigurationsLastUsed.Default["ConfigureAreaUnitsLastUsedParams"] as string;
       string[] sParams = sParamString.Split('|'); //"Acres|0.25"
       if (sParams.Length == 0)
@@ -66,6 +69,7 @@ namespace ParcelsAddin
         _areaUnitName = "Acres";
         _areaValueText = "0.25";
         _largeParcelAreaCode = 109402;
+        _updateStatedAreaText = "True";
       }
       else
       {
@@ -83,12 +87,20 @@ namespace ParcelsAddin
             _areaValueText = "0.25";
         }
         catch { _areaValueText = "0.25"; }
+        try
+        {
+          _updateStatedAreaText = sParams[5];
+          if (String.IsNullOrEmpty(_updateStatedAreaText))
+            _updateStatedAreaText = "True";
+        }
+        catch { _updateStatedAreaText = "True"; }
       }
 
       _largeParcelAreaCode = _dictAreaUnitsCodeLookup[_areaUnitName];
-
+      _updateStatedArea = _updateStatedAreaText.Trim().ToLower() == "true" ? true : false;
       _ConfigureAreaUnitsModel = new ConfigureAreaUnitsModel
       {
+        UpdateStatedArea = _updateStatedArea,
         AreaUnitName = _areaUnitName,
         AreaUnitsNameList = _areaUnitsNameList,
         LargeAreaValueText = _areaValueText,

@@ -36,14 +36,15 @@ namespace ParcelsAddin
 {
   internal class ConfigureAreaUnits : Button
   {
-    private readonly ConfigureAreaUnitsViewModel _VM = new();
     protected override void OnClick()
     {
+      ConfigureAreaUnitsViewModel _VM = new();
       #region Collect parameters from dialog and save to settings
-      ConfigureAreaUnitsDialog ConfigureAreaUnitsInput = new();
-      ConfigureAreaUnitsInput.Owner = FrameworkApplication.Current.MainWindow;
-      ConfigureAreaUnitsInput.DataContext = _VM;
-      
+      var ConfigureAreaUnitsInput = new ConfigureAreaUnitsDialog
+      {
+        Owner = FrameworkApplication.Current.MainWindow,
+        DataContext = _VM
+      };
       if (ConfigureAreaUnitsInput.ShowDialog() == true)
       {
         long largeParcelAreaUnitCode = _VM.ConfigureAreaUnitsModel.AreaUnitsCodeLookup[_VM.ConfigureAreaUnitsModel.AreaUnitName];
@@ -51,7 +52,8 @@ namespace ParcelsAddin
         ConfigurationsLastUsed.Default["ConfigureAreaUnitsLastUsedParams"] = _VM.ConfigureAreaUnitsModel.AreaUnitName + "|" +
           _VM.ConfigureAreaUnitsModel.LargeAreaValueText + "|" + largeParcelAreaUnitCode.ToString()
           + "|" + _VM.ConfigureAreaUnitsModel.LargeParcelAreaInSquareMeters.ToString()
-          + "|" + _VM.ConfigureAreaUnitsModel.SquareMetersPerAreaUnit.ToString();
+          + "|" + _VM.ConfigureAreaUnitsModel.SquareMetersPerAreaUnit.ToString()
+          + "|" + _VM.ConfigureAreaUnitsModel.UpdateStatedArea.ToString();
         ConfigurationsLastUsed.Default.Save();//comment out if you only want to save settings within each app session
       }
       #endregion Collect parameters from dialog and save to settings

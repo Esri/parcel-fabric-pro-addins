@@ -90,7 +90,8 @@ namespace ParcelsAddin
       double _largeParcelToleranceInSqMeters = 1011.715; //default to quarter acre in units of meters = 1011.715 sq.m
       long _largeParcelUnitCode = 109402; //acres as default
       double _sqMetersPerAreaUnit = 4046.86;//for acres as default
-      
+      bool _updateStatedArea = true;
+
       try
       {
         string sParamString = ConfigurationsLastUsed.Default["ConfigureAreaUnitsLastUsedParams"] as string;
@@ -99,6 +100,7 @@ namespace ParcelsAddin
         _ = long.TryParse(sParams[2], out _largeParcelUnitCode);
         _ = double.TryParse(sParams[3], out _largeParcelToleranceInSqMeters);
         _ = double.TryParse(sParams[4], out _sqMetersPerAreaUnit);
+        _ = bool.TryParse(sParams[5], out _updateStatedArea);
       }
       catch
       {; }
@@ -311,20 +313,23 @@ namespace ParcelsAddin
               if (!Double.IsNaN(calcArea))
               {
                 ParcelAttributes.Add("CalculatedArea", calcArea);
-                var AreaSqMeters = calcArea * _metersPerUnit * _metersPerUnit;
-                if (AreaSqMeters >= _largeParcelToleranceInSqMeters)
+                if (_updateStatedArea)
                 {
-                  var areaInLargeParcelUnits = AreaSqMeters / _sqMetersPerAreaUnit;// example: 1 acre = 4046.86 sq.meters
-                  ParcelAttributes.Add("StatedArea", areaInLargeParcelUnits.ToString("0.00"));
-                  ParcelAttributes.Add("StatedAreaUnit", _largeParcelUnitCode);
-                }
-                else
-                {
-                  ParcelAttributes.Add("StatedArea", calcArea.ToString("0"));
-                  if (_metersPerUnit < 1)
-                    ParcelAttributes.Add("StatedAreaUnit", 109405); //use square foot
+                  var AreaSqMeters = calcArea * _metersPerUnit * _metersPerUnit;
+                  if (AreaSqMeters >= _largeParcelToleranceInSqMeters)
+                  {
+                    var areaInLargeParcelUnits = AreaSqMeters / _sqMetersPerAreaUnit;// example: 1 acre = 4046.86 sq.meters
+                    ParcelAttributes.Add("StatedArea", areaInLargeParcelUnits.ToString("0.00"));
+                    ParcelAttributes.Add("StatedAreaUnit", _largeParcelUnitCode);
+                  }
                   else
-                    ParcelAttributes.Add("StatedAreaUnit", 109404); //use square meter
+                  {
+                    ParcelAttributes.Add("StatedArea", calcArea.ToString("0"));
+                    if (_metersPerUnit < 1)
+                      ParcelAttributes.Add("StatedAreaUnit", 109405); //use square foot
+                    else
+                      ParcelAttributes.Add("StatedAreaUnit", 109404); //use square meter
+                  }
                 }
               }
               editOper.Modify(featlyr.Key, oid, ParcelAttributes);
