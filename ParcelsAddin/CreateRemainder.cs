@@ -1,4 +1,4 @@
-﻿/* Copyright 2023 Esri
+﻿/* Copyright 2026 Esri
  *
  * Licensed under the Apache License Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -67,6 +67,13 @@ namespace ParcelsAddin
     //}
     protected override async void OnClick()
     {
+      var lic = ArcGIS.Core.Licensing.LicenseInformation.Level;
+      if (lic < ArcGIS.Core.Licensing.LicenseLevels.Standard)
+      {
+          MessageBox.Show("Insufficient license level.","Create Remainder");
+          return;
+      }
+      
       bool hasParcelSelection = await QueuedTask.Run(() =>
       {
         var selDict = MapView.Active?.Map?.GetSelection().ToDictionary<FeatureLayer>();
